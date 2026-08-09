@@ -3,8 +3,8 @@ set -euo pipefail
 
 VBR=${VBR:-vbr}
 REDIST=/opt/veeam/redist/val/x64/rpm
-S3=${S3:?set S3 bucket url}
-S3_ENDPOINT=${S3_ENDPOINT:?set S3 endpoint url}
+S3=${S3:-s3://tools/}
+S3_ENDPOINT=${S3_ENDPOINT:-https://s3.m1k.cloud}
 REPO=$(cd "$(dirname "$0")" && pwd)
 
 remote_ver=$(ssh "$VBR" "ls $REDIST" \
