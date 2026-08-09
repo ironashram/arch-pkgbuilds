@@ -29,8 +29,9 @@ One directory per package:
   for anything outdated. Needs `nvchecker` and `jq`.
 - `./update.sh <pkg> [version]` - bumps pkgver (resolves the version via nvchecker when
   omitted), resets pkgrel, `updpkgsums`, builds with `makepkg`. Needs `pacman-contrib`.
-- `./publish.sh <pkgfile>...` - copies into the local repo staging dir, `repo-add`,
-  `aws s3 sync` to the bucket.
+- `./publish.sh <pkgfile>...` - detach-signs anything unsigned, copies into the local
+  repo staging dir, `repo-add --sign`, `aws s3 sync` to the bucket. Clients pin the
+  repository to `SigLevel = Required TrustedOnly`.
 
 Special cases with their own driver: `veeam-agent-arch/update.sh` (mirrors the RPMs and
 bumps both veeam PKGBUILDs), `plex-htpc/update.sh` (resolves snap revision and hash).
