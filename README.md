@@ -23,5 +23,14 @@ One directory per package:
 | visual-studio-code-bin | [Microsoft VS Code](https://code.visualstudio.com/) vendor tarball |
 | zwait | own package, source at [ironashram/zwait](https://github.com/ironashram/zwait) |
 
-Build with `makepkg`, publish with `repo-add` + `aws s3 sync` to the bucket backing the
-repository.
+## Update flow
+
+- `./check.sh` - queries every upstream (`nvchecker.toml`) and prints `pkg: old -> new`
+  for anything outdated. Needs `nvchecker` and `jq`.
+- `./update.sh <pkg> [version]` - bumps pkgver (resolves the version via nvchecker when
+  omitted), resets pkgrel, `updpkgsums`, builds with `makepkg`. Needs `pacman-contrib`.
+- `./publish.sh <pkgfile>...` - copies into the local repo staging dir, `repo-add`,
+  `aws s3 sync` to the bucket.
+
+Special cases with their own driver: `veeam-agent-arch/update.sh` (mirrors the RPMs and
+bumps both veeam PKGBUILDs), `plex-htpc/update.sh` (resolves snap revision and hash).
