@@ -1,0 +1,11 @@
+src/
+pkg/
+*.pkg.tar*
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+*.deb
+*.rpm
+*.iso
+*.snap
+*.log

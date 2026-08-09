@@ -1,0 +1,32 @@
+pkgname=archiso-systemd-boot-m1k
+pkgver=2024.11.26
+pkgrel=1
+pkgdesc='archiso as systemd-boot loader entry'
+arch=('x86_64')
+url='https://archlinux.org/download/'
+license=('GPL-3.0-or-later')
+depends=('systemd')
+options=('!debug')
+backup=("boot/loader/entries/arch-rescue.conf")
+source=("https://s3.m1k.cloud/tools/archlinux-baseline-${pkgver}-${arch}.iso"
+        "arch-rescue.conf")
+noextract=("archlinux-baseline-${pkgver}-${arch}.iso")
+b2sums=('29e45bed4d2f8a66038f8ece71c155510346a5dd8f4bb64556c7c8e7187ad088ff365021f61b97262b31d2b5075ebbceb1a5e6025653805735330120d2b7ff74'
+        '7f1ea3990022ab122b3a70d4ed60f441a3bcc9135202d311dd94a60a43e79e82f5654ff61f72c5cfcaa69632ae3ecfcac37c1ac7142fbbad5f618fcbd3dc5612')
+
+prepare() {
+  cd ${srcdir}
+  bsdtar xf archlinux-baseline-${pkgver}-${arch}.iso \
+    arch/boot/${arch}/initramfs-linux.img \
+    arch/boot/${arch}/vmlinuz-linux \
+    arch/${arch}/airootfs.erofs
+}
+
+package() {
+  install -d "${pkgdir}"/boot/archiso/${arch}
+  install "${srcdir}"/arch/boot/${arch}/initramfs-linux.img "${pkgdir}"/boot/archiso/initramfs-linux.img
+  install "${srcdir}"/arch/boot/${arch}/vmlinuz-linux "${pkgdir}"/boot/archiso/vmlinuz-linux
+  install "${srcdir}"/arch/${arch}/airootfs.erofs "${pkgdir}"/boot/archiso/${arch}/airootfs.erofs
+  install -d -m 755 "${pkgdir}"/boot/loader/entries
+  install arch-rescue.conf "${pkgdir}"/boot/loader/entries/arch-rescue.conf
+}
