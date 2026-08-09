@@ -28,5 +28,10 @@ if [[ $pkg == plex-media-server-plexpass ]]; then
   sed -i "s/^_pkgsum=.*/_pkgsum=${ver#*-}/" "$pkg/PKGBUILD"
 fi
 
-(cd "$pkg" && updpkgsums && makepkg -scf --noconfirm)
-echo "built $pkg $base - publish with: ./publish.sh $pkg/*.pkg.tar.zst"
+export BUILDDIR=/var/tmp/arch-pkgbuilds/build
+export SRCDEST=/var/tmp/arch-pkgbuilds/src
+export PKGDEST=/var/tmp/arch-pkgbuilds/pkg
+mkdir -p "$BUILDDIR" "$SRCDEST" "$PKGDEST"
+
+(cd "$pkg" && updpkgsums && makepkg -dcf --noconfirm)
+echo "built $pkg $base - publish with: ./publish.sh $PKGDEST/<file>"
