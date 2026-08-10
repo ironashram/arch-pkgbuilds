@@ -42,6 +42,12 @@ github = "ironashram/zwait"
 use_max_tag = true
 prefix = "v"
 
+[openconnect-fortinet-saml]
+source = "github"
+github = "ironashram/openconnect-fortinet-saml"
+use_max_tag = true
+prefix = "v"
+
 # needs SSH enabled on the VBR appliance, uncomment to include in checks
 # [veeam-agent-arch]
 # source = "cmd"

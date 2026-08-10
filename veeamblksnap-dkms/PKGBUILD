@@ -14,8 +14,8 @@ depends=('dkms')
 conflicts=("${_pkgbase}")
 source=("${url}/blksnap-${pkgver}-${pkgrel}.noarch.rpm"
         'dkms.conf')
-sha256sums=('SKIP'
-  '21a182149740160df2d3475fad4142a08d8fc850e0234d32922472f7e4aa66fc')
+sha256sums=('4ec62f1df476ba9df82d4f50c1353dbe55978b40b4dbde2a6f5d2b6cbb0a6bbb'
+            '21a182149740160df2d3475fad4142a08d8fc850e0234d32922472f7e4aa66fc')
 
 package() {
   local target="${pkgdir}/usr/src/${_pkgname}-${pkgver}"

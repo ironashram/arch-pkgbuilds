@@ -9,7 +9,7 @@ license=('MIT')
 depends=('bash' 'zsh' 'zellij' 'util-linux' 'gawk' 'coreutils' 'grep' 'sed')
 optdepends=('konsole: default terminal for zspawn/ztail detached windows')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('8aed5e6851495537db70ba380473f7bb51960f6ba82b3092be19d7c3cd63edcd')
 
 package() {
   cd "$pkgname-$pkgver"

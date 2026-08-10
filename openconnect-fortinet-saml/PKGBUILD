@@ -2,7 +2,6 @@
 # Based on the Arch openconnect PKGBUILD by Levente Polyak
 
 pkgname=openconnect-fortinet-saml
-_upstream=openconnect
 pkgver=1.0.4
 pkgrel=1
 epoch=1
@@ -16,22 +15,22 @@ depends=('libxml2' 'gnutls' 'libproxy' 'vpnc' 'krb5' 'lz4' 'pcsclite'
          libstoken.so libtss2-esys.so libtss2-mu.so libtss2-tctildr.so
          libxml2.so libproxy.so libhogweed.so libp11-kit.so libpskc.so
          libgssapi_krb5.so libpcsclite.so)
-makedepends=('git' 'intltool' 'python' 'autoconf' 'automake' 'libtool' 'pkgconf')
+makedepends=('intltool' 'python' 'autoconf' 'automake' 'libtool' 'pkgconf')
 checkdepends=('python-flask')
 optdepends=('python: tncc-wrapper')
 provides=('openconnect' 'libopenconnect.so')
 conflicts=('openconnect')
 options=('!emptydirs')
-source=("${_upstream}::git+https://github.com/ironashram/openconnect-fortinet-saml.git#branch=master")
-sha256sums=('SKIP')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('bf68c0123e58b98610c4b71897999029b336efb266f284936231485e6f129f23')
 
 prepare() {
-  cd "${_upstream}"
+  cd "$pkgname-$pkgver"
   ./autogen.sh
 }
 
 build() {
-  cd "${_upstream}"
+  cd "$pkgname-$pkgver"
   PYTHON=/usr/bin/python \
     ./configure \
     --prefix=/usr \
@@ -43,12 +42,12 @@ build() {
 }
 
 check() {
-  cd "${_upstream}"
+  cd "$pkgname-$pkgver"
   make check
 }
 
 package() {
-  cd "${_upstream}"
+  cd "$pkgname-$pkgver"
   make DESTDIR="${pkgdir}" install
 }
 

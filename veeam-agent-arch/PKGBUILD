@@ -18,8 +18,8 @@ depends=('ncurses' 'lvm2' 'fuse' 'mlocate')
 optdepends=('veeamblksnap-arch-dkms')
 conflicts=('veeam')
 source=("${url}/$_pkgname-$pkgver-1.el10.x86_64.rpm" "${url}/$_pkgname-libs-$pkgver-1.x86_64.rpm" )
-sha256sums=('SKIP'
-            'SKIP')
+sha256sums=('0a10540d7c0393e0f5046f7208e10f6865b8c1d9deaff245144758ff342a0c9e'
+            '6760307757ff5bf0b044f6707e8edf01d5946fadd6807d3ec7b42fae13d01f04')
 noextract=("$_pkgname-$pkgver-1.el10.x86_64.rpm")
 backup=('etc/veeam/veeam.ini' 'usr/share/veeam/lpb_scheme.sql' 'usr/share/veeam/db_upgrade.sql' 'usr/share/veeam/db_scheme.sql')
 

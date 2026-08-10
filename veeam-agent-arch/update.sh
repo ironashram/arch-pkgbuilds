@@ -42,4 +42,8 @@ done
 sed -i "s/^pkgver=.*/pkgver=${remote_ver}/" \
   "$REPO/PKGBUILD" "$REPO/../veeamblksnap-dkms/PKGBUILD"
 
+for d in "$REPO" "$REPO/../veeamblksnap-dkms"; do
+  (cd "$d" && SRCDEST=/var/tmp/arch-pkgbuilds/src updpkgsums)
+done
+
 echo "bumped pkgver to $remote_ver in both PKGBUILDs"
