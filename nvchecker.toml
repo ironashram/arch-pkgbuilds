@@ -1,3 +1,8 @@
+[archiso-systemd-boot]
+source = "regex"
+url = "https://archlinux.org/download/"
+regex = "Current Release:</strong> ([0-9.]+)"
+
 [visual-studio-code-bin]
 source = "cmd"
 cmd = "curl -s https://update.code.visualstudio.com/api/releases/stable | jq -r '.[0]'"

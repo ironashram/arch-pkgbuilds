@@ -1,5 +1,5 @@
-pkgname=archiso-systemd-boot-m1k
-pkgver=2024.11.26
+pkgname=archiso-systemd-boot
+pkgver=2026.07.01
 pkgrel=1
 pkgdesc='archiso as systemd-boot loader entry'
 arch=('x86_64')
@@ -8,25 +8,25 @@ license=('GPL-3.0-or-later')
 depends=('systemd')
 options=('!debug')
 backup=("boot/loader/entries/arch-rescue.conf")
-source=("https://s3.m1k.cloud/tools/archlinux-baseline-${pkgver}-${arch}.iso"
+source=("https://geo.mirror.pkgbuild.com/iso/${pkgver}/archlinux-${pkgver}-${arch}.iso"
         "arch-rescue.conf")
-noextract=("archlinux-baseline-${pkgver}-${arch}.iso")
-b2sums=('29e45bed4d2f8a66038f8ece71c155510346a5dd8f4bb64556c7c8e7187ad088ff365021f61b97262b31d2b5075ebbceb1a5e6025653805735330120d2b7ff74'
-        '7f1ea3990022ab122b3a70d4ed60f441a3bcc9135202d311dd94a60a43e79e82f5654ff61f72c5cfcaa69632ae3ecfcac37c1ac7142fbbad5f618fcbd3dc5612')
+noextract=("archlinux-${pkgver}-${arch}.iso")
+b2sums=('9452a8bbbd9bce905fb278b92a69c301e5b3618e3a6a7e77b4191962d43ca68069d5dd8eec95138247bc767400bbd39002942336fc7ab0823c415c6b17443c2e'
+        'f55abf33fbcb7d462d175c16dbe43e4f3bcb7c3ec60ad19a2d31a733c6f8948792b539c48f85dfc7ebe24e136ff74212a129c61605471ce0009c3b62f081a221')
 
 prepare() {
   cd ${srcdir}
-  bsdtar xf archlinux-baseline-${pkgver}-${arch}.iso \
+  bsdtar xf archlinux-${pkgver}-${arch}.iso \
     arch/boot/${arch}/initramfs-linux.img \
     arch/boot/${arch}/vmlinuz-linux \
-    arch/${arch}/airootfs.erofs
+    arch/${arch}/airootfs.sfs
 }
 
 package() {
   install -d "${pkgdir}"/boot/archiso/${arch}
   install "${srcdir}"/arch/boot/${arch}/initramfs-linux.img "${pkgdir}"/boot/archiso/initramfs-linux.img
   install "${srcdir}"/arch/boot/${arch}/vmlinuz-linux "${pkgdir}"/boot/archiso/vmlinuz-linux
-  install "${srcdir}"/arch/${arch}/airootfs.erofs "${pkgdir}"/boot/archiso/${arch}/airootfs.erofs
+  install "${srcdir}"/arch/${arch}/airootfs.sfs "${pkgdir}"/boot/archiso/${arch}/airootfs.sfs
   install -d -m 755 "${pkgdir}"/boot/loader/entries
   install arch-rescue.conf "${pkgdir}"/boot/loader/entries/arch-rescue.conf
 }

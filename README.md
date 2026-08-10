@@ -8,7 +8,7 @@ One directory per package:
 
 | package | source |
 |---|---|
-| archiso-systemd-boot | own package, custom [archiso](https://gitlab.archlinux.org/archlinux/archiso) rescue ISO |
+| archiso-systemd-boot | own package, [official Arch release ISO](https://archlinux.org/download/) repack as a rescue boot entry |
 | helm-docs | [norwoodj/helm-docs](https://github.com/norwoodj/helm-docs) release binary |
 | metapac | [ripytide/metapac](https://github.com/ripytide/metapac) release tarball (crates.io) |
 | openconnect-fortinet-saml | own package, source at [ironashram/openconnect-fortinet-saml](https://github.com/ironashram/openconnect-fortinet-saml) |

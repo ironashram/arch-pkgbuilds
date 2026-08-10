@@ -1,17 +1,17 @@
-pkgbase = archiso-systemd-boot-m1k
+pkgbase = archiso-systemd-boot
 	pkgdesc = archiso as systemd-boot loader entry
-	pkgver = 2024.11.26
+	pkgver = 2026.07.01
 	pkgrel = 1
 	url = https://archlinux.org/download/
 	arch = x86_64
 	license = GPL-3.0-or-later
 	depends = systemd
-	noextract = archlinux-baseline-2024.11.26-x86_64.iso
+	noextract = archlinux-2026.07.01-x86_64.iso
 	options = !debug
 	backup = boot/loader/entries/arch-rescue.conf
-	source = https://s3.m1k.cloud/tools/archlinux-baseline-2024.11.26-x86_64.iso
+	source = https://geo.mirror.pkgbuild.com/iso/2026.07.01/archlinux-2026.07.01-x86_64.iso
 	source = arch-rescue.conf
-	b2sums = 29e45bed4d2f8a66038f8ece71c155510346a5dd8f4bb64556c7c8e7187ad088ff365021f61b97262b31d2b5075ebbceb1a5e6025653805735330120d2b7ff74
-	b2sums = 7f1ea3990022ab122b3a70d4ed60f441a3bcc9135202d311dd94a60a43e79e82f5654ff61f72c5cfcaa69632ae3ecfcac37c1ac7142fbbad5f618fcbd3dc5612
+	b2sums = 9452a8bbbd9bce905fb278b92a69c301e5b3618e3a6a7e77b4191962d43ca68069d5dd8eec95138247bc767400bbd39002942336fc7ab0823c415c6b17443c2e
+	b2sums = f55abf33fbcb7d462d175c16dbe43e4f3bcb7c3ec60ad19a2d31a733c6f8948792b539c48f85dfc7ebe24e136ff74212a129c61605471ce0009c3b62f081a221
 
-pkgname = archiso-systemd-boot-m1k
+pkgname = archiso-systemd-boot
