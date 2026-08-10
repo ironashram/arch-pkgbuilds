@@ -27,8 +27,10 @@ One directory per package:
 
 - `./check.sh` - queries every upstream (`nvchecker.toml`) and prints `pkg: old -> new`
   for anything outdated. Needs `nvchecker` and `jq`.
-- `./update.sh <pkg> [version]` - bumps pkgver (resolves the version via nvchecker when
-  omitted), resets pkgrel, `updpkgsums`, builds with `makepkg`. Needs `pacman-contrib`.
+- `./update.sh [pkg] [version]` - bumps pkgver (resolves the version via nvchecker when
+  omitted), resets pkgrel, `updpkgsums`, builds with `makepkg`, publishes the result.
+  With no arguments it builds and publishes everything `check.sh` reports - the single
+  check-build-publish command. Needs `pacman-contrib`.
 - `./publish.sh <pkgfile>...` - detach-signs anything unsigned, copies into the local
   repo staging dir, `repo-add --sign`, `aws s3 sync` to the bucket. Clients pin the
   repository to `SigLevel = Required TrustedOnly`.
