@@ -5,9 +5,9 @@ artifacts or real upstream release tarballs, nothing is fetched from the AUR.
 
 ## Why
 
-Created after the August 2026
-[AUR malicious packages incident](https://archlinux.org/news/active-aur-malicious-packages-incident/),
-when the AUR was locked down under a wave of malicious package adoptions and updates.
+Created in August 2026, months into the ongoing AUR malicious-package campaigns
+(the [initial incident](https://archlinux.org/news/active-aur-malicious-packages-incident/),
+then [pushes disabled entirely](https://lists.archlinux.org/archives/list/aur-general@lists.archlinux.org/thread/DRDEU3JUSC72CB265XHXPFA3DFSLXPBP/)).
 Rather than wait it out, every AUR package I used moved here: reviewed once, then
 maintained against upstream directly. Every source is checksum-pinned and every built
 package and the repository database are GPG-signed, so the chain runs from upstream to
