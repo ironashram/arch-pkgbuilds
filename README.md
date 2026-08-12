@@ -1,8 +1,17 @@
 # arch-pkgbuilds
 
-PKGBUILDs for the packages published to my private pacman repository. Self-contained home
-for all packaging after the AUR shutdown: sources are vendor artifacts or real upstream
-release tarballs, nothing is fetched from the AUR.
+PKGBUILDs for the packages published to my private pacman repository. Sources are vendor
+artifacts or real upstream release tarballs, nothing is fetched from the AUR.
+
+## Why
+
+Created after the August 2026
+[AUR malicious packages incident](https://archlinux.org/news/active-aur-malicious-packages-incident/),
+when the AUR was locked down under a wave of malicious package adoptions and updates.
+Rather than wait it out, every AUR package I used moved here: reviewed once, then
+maintained against upstream directly. Every source is checksum-pinned and every built
+package and the repository database are GPG-signed, so the chain runs from upstream to
+my machines with no third-party packaging layer in between.
 
 One directory per package:
 
