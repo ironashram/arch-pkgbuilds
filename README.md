@@ -29,11 +29,15 @@ One directory per package:
   for anything outdated. Needs `nvchecker` and `jq`.
 - `./update.sh [pkg] [version]` - bumps pkgver (resolves the version via nvchecker when
   omitted), resets pkgrel, `updpkgsums`, builds with `makepkg`, publishes the result.
-  With no arguments it builds and publishes everything `check.sh` reports - the single
-  check-build-publish command. Needs `pacman-contrib`.
-- `./publish.sh <pkgfile>...` - detach-signs anything unsigned, copies into the local
-  repo staging dir, `repo-add --sign`, `aws s3 sync` to the bucket. Clients pin the
-  repository to `SigLevel = Required TrustedOnly`.
+  With no arguments it builds and publishes everything `check.sh` reports and commits
+  the bumps - the single check-build-publish command. Needs `pacman-contrib`.
+- Deployment specifics live outside this repo in `~/.config/arch-pkgbuilds/`
+  (override with `ARCH_PKGBUILDS_CONF`): an `env` file sourced by the scripts, the
+  `publish.sh` that signs and syncs to the repository storage, and systemd user units
+  for unattended timer runs. `update.sh --alert` posts a failure alert to the
+  Alertmanager named by `ALERTMANAGER_URL`.
+- Packages and db are signed; clients pin the repository to
+  `SigLevel = Required TrustedOnly`.
 
 Special cases with their own driver: `veeam-agent-arch/update.sh` (mirrors the RPMs and
 bumps both veeam PKGBUILDs), `plex-htpc/update.sh` (resolves snap revision and hash).

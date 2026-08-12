@@ -1,10 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+conf_dir=${ARCH_PKGBUILDS_CONF:-$HOME/.config/arch-pkgbuilds}
+[[ -f "$conf_dir/env" ]] && . "$conf_dir/env"
+
 VBR=${VBR:-vbr}
 REDIST=/opt/veeam/redist/val/x64/rpm
-S3=${S3:-s3://tools/}
-S3_ENDPOINT=${S3_ENDPOINT:-https://s3.m1k.cloud}
+S3=${S3:?set S3 bucket url}
+S3_ENDPOINT=${S3_ENDPOINT:?set S3 endpoint url}
 REPO=$(cd "$(dirname "$0")" && pwd)
 
 remote_ver=$(ssh "$VBR" "ls $REDIST" \

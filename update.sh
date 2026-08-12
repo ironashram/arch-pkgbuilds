@@ -2,6 +2,23 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+conf_dir=${ARCH_PKGBUILDS_CONF:-$HOME/.config/arch-pkgbuilds}
+[[ -f "$conf_dir/env" ]] && . "$conf_dir/env"
+
+if [[ "${1:-}" == "--alert" ]]; then
+  : "${ALERTMANAGER_URL:?set ALERTMANAGER_URL}"
+  ends=$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)
+  jq -n --arg e "$ends" \
+    '[{labels: {alertname: "ArchPkgbuildsUpdateFailed", severity: "critical",
+                instance: "arch-pkgbuilds"},
+       annotations: {summary: "arch-pkgbuilds unattended update failed",
+                     description: "journalctl --user -u arch-pkgbuilds-update.service"},
+       endsAt: $e}]' \
+    | curl -sS -m 10 -H "Content-Type: application/json" -d @- \
+        "$ALERTMANAGER_URL/api/v2/alerts"
+  exit 0
+fi
+
 export BUILDDIR=/var/tmp/arch-pkgbuilds/build
 export SRCDEST=/var/tmp/arch-pkgbuilds/src
 export PKGDEST=/var/tmp/arch-pkgbuilds/pkg
@@ -27,6 +44,7 @@ build_one() {
 
 built_list=$(mktemp)
 trap 'rm -f "$built_list"' EXIT
+failed=()
 
 if [[ $# -eq 0 ]]; then
   while read -r line; do
@@ -38,7 +56,10 @@ if [[ $# -eq 0 ]]; then
       continue
       ;;
     esac
-    build_one "$pkg" "$ver"
+    build_one "$pkg" "$ver" || {
+      echo "FAILED: $pkg" >&2
+      failed+=("$pkg")
+    }
   done < <(./check.sh)
 else
   case $1 in
@@ -57,7 +78,15 @@ fi
 if [[ -s "$built_list" ]]; then
   echo "built:"
   cat "$built_list"
-  xargs -a "$built_list" ./publish.sh
+  xargs -a "$built_list" "$conf_dir/publish.sh"
+  if ! git diff --quiet; then
+    git pull --ff-only
+    git add -A
+    git commit -sS -m "auto-update: $(sed 's|.*/||; s/\.pkg\.tar\.zst$//' "$built_list" | tr '\n' ' ')"
+    git push
+  fi
 else
   echo "nothing to build"
 fi
+
+((${#failed[@]} == 0)) || exit 1
