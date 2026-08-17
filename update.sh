@@ -47,7 +47,9 @@ trap 'rm -f "$built_list"' EXIT
 failed=()
 
 if [[ $# -eq 0 ]]; then
+  updates=$(./check.sh)
   while read -r line; do
+    [[ -z "$line" ]] && continue
     pkg=${line%%:*}
     ver=${line##* }
     case $pkg in
@@ -60,7 +62,7 @@ if [[ $# -eq 0 ]]; then
       echo "FAILED: $pkg" >&2
       failed+=("$pkg")
     }
-  done < <(./check.sh)
+  done <<<"$updates"
 else
   case $1 in
   veeam-agent-arch | veeamblksnap-dkms)
