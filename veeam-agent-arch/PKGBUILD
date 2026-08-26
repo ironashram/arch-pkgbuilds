@@ -115,7 +115,8 @@ fi
 EOF
   chmod +x "$pkgdir"/usr/local/bin/veeam-restore-os
 
-  # Enable FIPS module include in openssl.cnf
-  sed -i 's|# .include fipsmodule.cnf|.include /opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/fipsmodule.cnf|' \
-    "$pkgdir"/opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/openssl.cnf
+  # Enable FIPS module include in openssl.cnf (bundled openssl dir moves across releases)
+  local _cnf=("$pkgdir"/opt/veeam/veeamagentforlinux/openssl*/*/ssl/openssl.cnf)
+  local _ssldir=${_cnf[0]%/openssl.cnf}
+  sed -i "s|# .include fipsmodule.cnf|.include ${_ssldir#"$pkgdir"}/fipsmodule.cnf|" "${_cnf[0]}"
 }

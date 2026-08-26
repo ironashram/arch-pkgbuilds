@@ -48,5 +48,9 @@ One directory per package:
 - Packages and db are signed; clients pin the repository to
   `SigLevel = Required TrustedOnly`.
 
-Special cases with their own driver: `veeam-agent-arch/update.sh` (mirrors the RPMs and
-bumps both veeam PKGBUILDs), `plex-htpc/update.sh` (resolves snap revision and hash).
+veeam is first-class but opportunistic: its upstream check lives in
+`nvchecker-veeam.toml` (the appliance is reachable only when its SSH is enabled) and is
+skipped silently when unreachable. When reachable, the flow mirrors the RPMs to the
+bucket, then builds and publishes both veeam packages - unattended or via
+`./update.sh veeam-agent-arch`. Only plex-htpc keeps its own driver
+(`plex-htpc/update.sh`, resolves snap revision and hash).

@@ -42,6 +42,31 @@ build_one() {
   (cd "$pkg" && makepkg --packagelist) >>"$built_list"
 }
 
+veeam_mirror() {
+  local ver=$1 f
+  : "${S3:?set S3 bucket url}" "${S3_ENDPOINT:?set S3 endpoint url}"
+  for f in "veeam-${ver}-1.el10.x86_64.rpm" \
+    "veeam-libs-${ver}-1.x86_64.rpm" \
+    "blksnap-${ver}-1.noarch.rpm"; do
+    scp "${VBR:-vbr}:/opt/veeam/redist/val/x64/rpm/${f}" "$SRCDEST/${f}"
+    aws ${S3_PROFILE:+--profile $S3_PROFILE} --endpoint-url "$S3_ENDPOINT" \
+      s3 cp "$SRCDEST/${f}" "${S3}${f}"
+  done
+}
+
+veeam_update() {
+  local ver=${1:-}
+  [[ -n "$ver" ]] || ver=$(nvchecker -c nvchecker-veeam.toml --logger json 2>/dev/null \
+    | jq -r 'select(.event == "updated").version')
+  [[ -n "$ver" && "$ver" != null ]] || {
+    echo "no veeam version - appliance ssh enabled?" >&2
+    return 1
+  }
+  veeam_mirror "$ver"
+  build_one veeam-agent-arch "$ver"
+  build_one veeamblksnap-dkms "$ver"
+}
+
 built_list=$(mktemp)
 trap 'rm -f "$built_list"' EXIT
 failed=()
@@ -53,8 +78,15 @@ if [[ $# -eq 0 ]]; then
     pkg=${line%%:*}
     ver=${line##* }
     case $pkg in
-    veeam-agent-arch | veeamblksnap-dkms | plex-htpc)
-      echo "skipping $pkg - use its own update.sh" >&2
+    plex-htpc)
+      echo "skipping plex-htpc - use plex-htpc/update.sh" >&2
+      continue
+      ;;
+    veeam-agent-arch)
+      veeam_update "$ver" || {
+        echo "FAILED: veeam" >&2
+        failed+=(veeam)
+      }
       continue
       ;;
     esac
@@ -66,15 +98,16 @@ if [[ $# -eq 0 ]]; then
 else
   case $1 in
   veeam-agent-arch | veeamblksnap-dkms)
-    echo "use veeam-agent-arch/update.sh" >&2
-    exit 1
+    veeam_update "${2:-}"
     ;;
   plex-htpc)
     echo "use plex-htpc/update.sh" >&2
     exit 1
     ;;
+  *)
+    build_one "$1" "${2:-}"
+    ;;
   esac
-  build_one "$1" "${2:-}"
 fi
 
 if [[ -s "$built_list" ]]; then

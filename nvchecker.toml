@@ -52,7 +52,3 @@ source = "github"
 github = "ironashram/openconnect-fortinet-saml"
 use_max_tag = true
 prefix = "v"
-
-#[veeam-agent-arch]
-#source = "cmd"
-#cmd = "ssh vbr ls /opt/veeam/redist/val/x64/rpm | grep -oE 'veeam-([0-9]+\\.){3}[0-9]+' | grep -oE '([0-9]+\\.){3}[0-9]+' | sort -V | awk 'END{print}'"
