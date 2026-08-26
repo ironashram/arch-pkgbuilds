@@ -52,5 +52,6 @@ veeam is first-class but opportunistic: its upstream check lives in
 `nvchecker-veeam.toml` (the appliance is reachable only when its SSH is enabled) and is
 skipped silently when unreachable. When reachable, the flow mirrors the RPMs to the
 bucket, then builds and publishes both veeam packages - unattended or via
-`./update.sh veeam-agent-arch`. Only plex-htpc keeps its own driver
-(`plex-htpc/update.sh`, resolves snap revision and hash).
+`./update.sh veeam-agent-arch`. plex-htpc resolves its snap revision and full
+version/hash from the snap itself as part of the same flow (needs `sudo` for the
+squashfs mount).

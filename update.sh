@@ -67,8 +67,70 @@ veeam_update() {
   build_one veeamblksnap-dkms "$ver"
 }
 
+plex_update() {
+  local res id stable rev ver dl snap mnt full hash
+  res=$(curl -sS -L -H 'Snap-Device-Series: 16' https://api.snapcraft.io/v2/snaps/info/plex-htpc)
+  id=$(jq -r '."snap-id"' <<<"$res")
+  stable=$(jq -e '."channel-map"[] | select(.channel.name == "stable")' <<<"$res")
+  rev=$(jq -r '.revision' <<<"$stable")
+  ver=$(jq -r '.version' <<<"$stable")
+  dl=$(jq -r '.download.url' <<<"$stable")
+  snap="$SRCDEST/${id}_${rev}.snap"
+  [[ -f "$snap" ]] || wget -q -O "$snap" "$dl"
+
+  mnt=$(mktemp -d)
+  plex_mnt=$mnt
+  sudo mount -t squashfs "$snap" "$mnt"
+
+  full=$ver
+  hash=""
+
+  if [[ -f "$mnt/snap/manifest.yaml" ]]; then
+    manifest_version=$(grep "^version:" "$mnt/snap/manifest.yaml" | cut -d: -f2 | tr -d ' ')
+    if [[ -n "$manifest_version" ]]; then
+      full="$manifest_version"
+    fi
+  fi
+
+  plex_binary=""
+  if [[ -f "$mnt/bin/Plex" ]]; then
+    plex_binary="$mnt/bin/Plex"
+  elif [[ -f "$mnt/Plex" ]]; then
+    plex_binary="$mnt/Plex"
+  fi
+
+  if [[ -n "$plex_binary" ]]; then
+    version_hash_string=$(strings "$plex_binary" | grep -E '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{8}' | awk 'NR==1{print;exit}' || true)
+
+    if [[ -n "$version_hash_string" ]]; then
+      if [[ $version_hash_string =~ ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-([a-f0-9]{8}) ]]; then
+        full="${BASH_REMATCH[1]}"
+        hash="${BASH_REMATCH[2]}"
+      fi
+    else
+      version_from_binary=$(strings "$plex_binary" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | awk 'NR==1{print;exit}' || true)
+      if [[ -n "$version_from_binary" && "$version_from_binary" != "127.0.0.1" ]]; then
+        full="$version_from_binary"
+      fi
+    fi
+  fi
+
+  if [[ -z "$hash" ]]; then
+    hash=$(grep "^_pkghash=" plex-htpc/PKGBUILD | cut -d= -f2)
+  fi
+
+  sudo umount "$mnt"
+  rmdir "$mnt"
+  plex_mnt=""
+
+  sed -i "s|^\(_pkghash=\).*|\1$hash|" plex-htpc/PKGBUILD
+  sed -i "s|^\(_snaprev=\).*|\1$rev|" plex-htpc/PKGBUILD
+  build_one plex-htpc "$full"
+}
+
 built_list=$(mktemp)
-trap 'rm -f "$built_list"' EXIT
+plex_mnt=""
+trap 'rm -f "$built_list"; [[ -n "$plex_mnt" ]] && { sudo umount "$plex_mnt" 2>/dev/null || true; rmdir "$plex_mnt" 2>/dev/null || true; }' EXIT
 failed=()
 
 if [[ $# -eq 0 ]]; then
@@ -79,7 +141,10 @@ if [[ $# -eq 0 ]]; then
     ver=${line##* }
     case $pkg in
     plex-htpc)
-      echo "skipping plex-htpc - use plex-htpc/update.sh" >&2
+      plex_update || {
+        echo "FAILED: plex-htpc" >&2
+        failed+=(plex-htpc)
+      }
       continue
       ;;
     veeam-agent-arch)
@@ -101,8 +166,7 @@ else
     veeam_update "${2:-}"
     ;;
   plex-htpc)
-    echo "use plex-htpc/update.sh" >&2
-    exit 1
+    plex_update
     ;;
   *)
     build_one "$1" "${2:-}"
