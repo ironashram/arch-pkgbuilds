@@ -41,6 +41,13 @@ source = "git"
 git = "https://gitlab.com/tuxedocomputers/development/packages/tuxedo-drivers.git"
 prefix = "v"
 
+[synology-drive]
+source = "regex"
+url = "https://archive.synology.com/download/Utility/SynologyDriveClient"
+regex = "SynologyDriveClient/([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+)"
+from_pattern = "-"
+to_pattern = "_"
+
 [yay]
 source = "github"
 github = "Jguer/yay"
