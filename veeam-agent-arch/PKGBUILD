@@ -8,7 +8,7 @@
 pkgname=veeam-agent-arch
 _pkgname=veeam
 pkgver=13.1.1.4
-pkgrel=1
+pkgrel=2
 pkgdesc="Veeam Agent for Linux"
 arch=('x86_64')
 url=https://s3.m1k.cloud/tools/

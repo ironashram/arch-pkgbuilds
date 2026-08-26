@@ -12,7 +12,7 @@ url="https://s3.m1k.cloud/tools/"
 license=('GPL')
 depends=('dkms')
 conflicts=("${_pkgbase}")
-source=("${url}/blksnap-${pkgver}-${pkgrel}.noarch.rpm"
+source=("${url}/blksnap-${pkgver}-1.noarch.rpm"
         'dkms.conf')
 sha256sums=('911c673532ac8973a2614424c419d9ba3268a9f73b3a33499350c53dcb359992'
             '21a182149740160df2d3475fad4142a08d8fc850e0234d32922472f7e4aa66fc')
