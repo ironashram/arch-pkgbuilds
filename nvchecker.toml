@@ -41,6 +41,12 @@ source = "git"
 git = "https://gitlab.com/tuxedocomputers/development/packages/tuxedo-drivers.git"
 prefix = "v"
 
+[yay]
+source = "github"
+github = "Jguer/yay"
+use_max_tag = true
+prefix = "v"
+
 [zwait]
 source = "github"
 github = "ironashram/zwait"
