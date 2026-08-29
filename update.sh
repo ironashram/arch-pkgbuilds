@@ -39,6 +39,7 @@ build_one() {
     sed -i "s/^_pkgsum=.*/_pkgsum=${ver#*-}/" "$pkg/PKGBUILD"
   fi
   (cd "$pkg" && updpkgsums && makepkg -dcf --noconfirm)
+  (cd "$pkg" && makepkg --printsrcinfo >.SRCINFO)
   (cd "$pkg" && makepkg --packagelist) >>"$built_list"
 }
 

@@ -1,4 +1,5 @@
-# Maintainer: James Forster <james.forsterer@gmail.com>
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: James Forster <james.forsterer@gmail.com>
 
 pkgname=metapac
 pkgver=0.10.1

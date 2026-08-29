@@ -1,0 +1,20 @@
+pkgbase = zwait
+	pkgdesc = Drive a user's visible zellij pane from a headless agent
+	pkgver = 0.2.2
+	pkgrel = 1
+	url = https://github.com/ironashram/zwait
+	arch = any
+	license = MIT
+	depends = bash
+	depends = zsh
+	depends = zellij
+	depends = util-linux
+	depends = gawk
+	depends = coreutils
+	depends = grep
+	depends = sed
+	optdepends = konsole: default terminal for zspawn/ztail detached windows
+	source = zwait-0.2.2.tar.gz::https://github.com/ironashram/zwait/archive/refs/tags/v0.2.2.tar.gz
+	sha256sums = 8aed5e6851495537db70ba380473f7bb51960f6ba82b3092be19d7c3cd63edcd
+
+pkgname = zwait

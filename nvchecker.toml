@@ -27,6 +27,7 @@ cratesio = "metapac"
 [helm-docs]
 source = "github"
 github = "norwoodj/helm-docs"
+include_regex = "[0-9.]+"
 use_latest_release = true
 prefix = "v"
 
@@ -39,6 +40,7 @@ arch = "x86_64"
 [tuxedo-drivers-dkms]
 source = "git"
 git = "https://gitlab.com/tuxedocomputers/development/packages/tuxedo-drivers.git"
+include_regex = "v[0-9.]+"
 prefix = "v"
 
 [synology-drive]
@@ -51,17 +53,20 @@ to_pattern = "_"
 [yay]
 source = "github"
 github = "Jguer/yay"
+include_regex = "v[0-9.]+"
 use_max_tag = true
 prefix = "v"
 
 [zwait]
 source = "github"
 github = "ironashram/zwait"
+include_regex = "v[0-9.]+"
 use_max_tag = true
 prefix = "v"
 
 [openconnect-fortinet-saml]
 source = "github"
 github = "ironashram/openconnect-fortinet-saml"
+include_regex = "v[0-9.]+"
 use_max_tag = true
 prefix = "v"

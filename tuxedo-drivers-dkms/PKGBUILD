@@ -1,4 +1,5 @@
-# Maintainer: Steven Seifried <gitlab@canox.net>
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: Steven Seifried <gitlab@canox.net>
 # Contributor: Steven Seifried <gitlab@canox.net>
 _pkgname=tuxedo-drivers
 pkgname=tuxedo-drivers-dkms

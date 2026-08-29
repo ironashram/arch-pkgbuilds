@@ -1,4 +1,5 @@
-# Maintainer: Jguer <pkgbuilds at jguer.space>
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: Jguer <pkgbuilds at jguer.space>
 pkgname=yay
 pkgver=13.0.1
 pkgrel=1

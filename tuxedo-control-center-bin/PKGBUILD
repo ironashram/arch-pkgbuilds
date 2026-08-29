@@ -1,4 +1,5 @@
-# Maintainer: Steven Seifried <gitlab@canox.net>
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: Steven Seifried <gitlab@canox.net>
 
 pkgname=tuxedo-control-center-bin
 pkgver=3.0.9

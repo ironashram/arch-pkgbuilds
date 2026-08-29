@@ -1,0 +1,25 @@
+pkgbase = veeam-agent-arch
+	pkgdesc = Veeam Agent for Linux
+	pkgver = 13.1.1.4
+	pkgrel = 2
+	url = https://s3.m1k.cloud/tools/
+	install = veeam.install
+	arch = x86_64
+	license = custom
+	depends = ncurses
+	depends = lvm2
+	depends = fuse
+	depends = mlocate
+	optdepends = veeamblksnap-arch-dkms
+	conflicts = veeam
+	noextract = veeam-13.1.1.4-1.el10.x86_64.rpm
+	backup = etc/veeam/veeam.ini
+	backup = usr/share/veeam/lpb_scheme.sql
+	backup = usr/share/veeam/db_upgrade.sql
+	backup = usr/share/veeam/db_scheme.sql
+	source = https://s3.m1k.cloud/tools//veeam-13.1.1.4-1.el10.x86_64.rpm
+	source = https://s3.m1k.cloud/tools//veeam-libs-13.1.1.4-1.x86_64.rpm
+	sha256sums = d040db8ca2d382bebbf9c98427153c6c8b1dd33aac4019d63c88372843f1954c
+	sha256sums = d36404f33211455c6c67fddc8f344c72078ed66bb4fc23d96b0bca5c20f163bb
+
+pkgname = veeam-agent-arch
