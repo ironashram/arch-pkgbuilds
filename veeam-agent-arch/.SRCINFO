@@ -1,7 +1,7 @@
 pkgbase = veeam-agent-arch
 	pkgdesc = Veeam Agent for Linux
 	pkgver = 13.1.1.4
-	pkgrel = 2
+	pkgrel = 3
 	url = https://s3.m1k.cloud/tools
 	install = veeam.install
 	arch = x86_64
@@ -10,6 +10,7 @@ pkgbase = veeam-agent-arch
 	depends = lvm2
 	depends = fuse
 	depends = mlocate
+	depends = which
 	optdepends = veeamblksnap-arch-dkms
 	conflicts = veeam
 	noextract = veeam-13.1.1.4-1.el10.x86_64.rpm

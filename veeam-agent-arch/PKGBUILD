@@ -8,13 +8,16 @@
 pkgname=veeam-agent-arch
 _pkgname=veeam
 pkgver=13.1.1.4
-pkgrel=2
+pkgrel=3
 pkgdesc="Veeam Agent for Linux"
 arch=('x86_64')
 url=https://s3.m1k.cloud/tools
 install=${_pkgname}.install
 license=('custom')
-depends=('ncurses' 'lvm2' 'fuse' 'mlocate')
+# which: the agent detects its package manager by running `which dnf`/`which yum`;
+# without it the dnf/rpm shims below are never reached and VBR registration fails
+# with "Operating system is not supported".
+depends=('ncurses' 'lvm2' 'fuse' 'mlocate' 'which')
 optdepends=('veeamblksnap-arch-dkms')
 conflicts=('veeam')
 source=("${url}/$_pkgname-$pkgver-1.el10.x86_64.rpm" "${url}/$_pkgname-libs-$pkgver-1.x86_64.rpm" )
