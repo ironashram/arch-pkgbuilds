@@ -41,6 +41,7 @@ build_one() {
   (cd "$pkg" && updpkgsums && makepkg -dcf --noconfirm)
   (cd "$pkg" && makepkg --printsrcinfo >.SRCINFO)
   (cd "$pkg" && makepkg --packagelist) >>"$built_list"
+  built_names+="${built_names:+ }$pkg-$base"
 }
 
 veeam_mirror() {
@@ -129,7 +130,25 @@ plex_update() {
   build_one plex-htpc "$full"
 }
 
+publish_and_commit() {
+  [[ -s "$built_list" ]] || return 0
+  echo "built:"
+  cat "$built_list"
+  xargs -a "$built_list" "$conf_dir/publish.sh"
+  if ! git diff --quiet -- "$@"; then
+    git pull --ff-only
+    git add -- "$@"
+    git commit -sS -m "auto-update: $built_names"
+    git push
+  fi
+  built=1
+  built_names=""
+  : >"$built_list"
+}
+
 built_list=$(mktemp)
+built_names=""
+built=0
 plex_mnt=""
 trap 'rm -f "$built_list"; [[ -n "$plex_mnt" ]] && { sudo umount "$plex_mnt" 2>/dev/null || true; rmdir "$plex_mnt" 2>/dev/null || true; }' EXIT
 failed=()
@@ -140,23 +159,25 @@ if [[ $# -eq 0 ]]; then
     [[ -z "$line" ]] && continue
     pkg=${line%%:*}
     ver=${line##* }
+    built_names=""
+    : >"$built_list"
     case $pkg in
     plex-htpc)
-      plex_update || {
+      plex_update && publish_and_commit plex-htpc || {
         echo "FAILED: plex-htpc" >&2
         failed+=(plex-htpc)
       }
       continue
       ;;
     veeam-agent-arch)
-      veeam_update "$ver" || {
+      veeam_update "$ver" && publish_and_commit veeam-agent-arch veeamblksnap-dkms || {
         echo "FAILED: veeam" >&2
         failed+=(veeam)
       }
       continue
       ;;
     esac
-    build_one "$pkg" "$ver" || {
+    build_one "$pkg" "$ver" && publish_and_commit "$pkg" || {
       echo "FAILED: $pkg" >&2
       failed+=("$pkg")
     }
@@ -164,29 +185,17 @@ if [[ $# -eq 0 ]]; then
 else
   case $1 in
   veeam-agent-arch | veeamblksnap-dkms)
-    veeam_update "${2:-}"
+    veeam_update "${2:-}" && publish_and_commit veeam-agent-arch veeamblksnap-dkms
     ;;
   plex-htpc)
-    plex_update
+    plex_update && publish_and_commit plex-htpc
     ;;
   *)
-    build_one "$1" "${2:-}"
+    build_one "$1" "${2:-}" && publish_and_commit "$1"
     ;;
   esac
 fi
 
-if [[ -s "$built_list" ]]; then
-  echo "built:"
-  cat "$built_list"
-  xargs -a "$built_list" "$conf_dir/publish.sh"
-  if ! git diff --quiet; then
-    git pull --ff-only
-    git add -A
-    git commit -sS -m "auto-update: $(sed 's|.*/||; s/\.pkg\.tar\.zst$//' "$built_list" | tr '\n' ' ')"
-    git push
-  fi
-else
-  echo "nothing to build"
-fi
+((built)) || echo "nothing to build"
 
 ((${#failed[@]} == 0)) || exit 1
