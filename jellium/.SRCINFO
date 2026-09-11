@@ -1,0 +1,24 @@
+pkgbase = jellium
+	pkgdesc = Unofficial Jellyfin desktop client built on CEF and mpv
+	pkgver = 0.r1137.28f2cf1
+	pkgrel = 1
+	url = https://github.com/andrewrabert/jellium-desktop
+	arch = x86_64
+	license = GPL-2.0-only
+	makedepends = clang
+	makedepends = git
+	makedepends = rust
+	depends = cef
+	depends = libglvnd
+	depends = libxcb
+	depends = libxkbcommon
+	depends = libxkbcommon-x11
+	depends = mpv
+	depends = wayland
+	depends = xdg-utils
+	options = !debug
+	options = !lto
+	source = jellium-desktop::git+https://github.com/andrewrabert/jellium-desktop.git#commit=28f2cf16a1f1b819884dd6a72919ca55bdf9bd73
+	sha256sums = SKIP
+
+pkgname = jellium
