@@ -1,0 +1,34 @@
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: George Rawlinson <grawlinson@archlinux.org>
+# Contributor: Giovanni Harting <anonfunc@archlinux.org>
+# Based on the Arch Linux jellyfin-web package.
+pkgname=jellyfin-m1k-web
+pkgver=12.0
+pkgrel=1
+pkgdesc='Web client for Jellyfin, pinned build paired with jellyfin-m1k-server'
+arch=(any)
+url='https://jellyfin.org'
+license=(GPL-2.0-or-later)
+makedepends=(git nodejs npm)
+provides=("jellyfin-web=$pkgver")
+conflicts=(jellyfin-web)
+source=("jellyfin-web::git+https://github.com/jellyfin/jellyfin-web#tag=v$pkgver")
+sha256sums=('SKIP')
+
+prepare() {
+  cd jellyfin-web
+  npm ci --no-audit --no-fund --no-update-notifier
+}
+
+build() {
+  cd jellyfin-web
+  npm run build:production
+}
+
+package() {
+  cd jellyfin-web
+  install -vd "$pkgdir/usr/share/jellyfin/web"
+  cp -r dist/* "$pkgdir/usr/share/jellyfin/web"
+  find "$pkgdir/usr/share/jellyfin/web" -type d -exec chmod 755 {} +
+  find "$pkgdir/usr/share/jellyfin/web" -type f -exec chmod 644 {} +
+}

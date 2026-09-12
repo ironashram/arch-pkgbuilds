@@ -1,0 +1,96 @@
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: George Rawlinson <grawlinson@archlinux.org>
+# Contributor: Giovanni Harting <anonfunc@archlinux.org>
+# Based on the Arch Linux jellyfin-server package.
+pkgname=jellyfin-m1k-server
+pkgver=12.0
+pkgrel=1
+pkgdesc='Jellyfin server backend with per-device profile overrides'
+arch=(x86_64)
+url='https://jellyfin.org'
+_url='https://github.com/jellyfin/jellyfin'
+license=(GPL-2.0-or-later)
+depends=(
+  glibc
+  libgcc
+  libstdc++
+  aspnet-runtime-10.0
+  bash
+  sqlite
+  fontconfig
+  jellyfin-m1k-ffmpeg
+  jemalloc
+)
+makedepends=(
+  git
+  dotnet-sdk-10.0
+  aspnet-targeting-pack-10.0
+)
+optdepends=(
+  'jellyfin-m1k-web: to run web-app on the same machine'
+  'noto-fonts: for text titles in library folders'
+)
+provides=("jellyfin-server=$pkgver")
+conflicts=(jellyfin-server)
+backup=(
+  etc/jellyfin/logging.json
+  etc/jellyfin/jellyfin.env
+)
+options=(!debug)
+source=(
+  "jellyfin::git+$_url#tag=v$pkgver"
+  "jellyfin-packaging::git+${_url}-packaging"
+  sysusers.conf
+  tmpfiles.conf
+  fix-envfile-path.patch
+  use-system-jemalloc.patch
+  device-profile-overrides.patch
+)
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+
+prepare() {
+  cd jellyfin-packaging
+  patch -p1 -i "$srcdir/fix-envfile-path.patch"
+  patch -p1 -i "$srcdir/use-system-jemalloc.patch"
+
+  cd "$srcdir/jellyfin"
+  patch -p1 -i "$srcdir/device-profile-overrides.patch"
+}
+
+build() {
+  cd jellyfin
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1
+  export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+  export DOTNET_NOLOGO=1
+  dotnet publish Jellyfin.Server \
+    --configuration Release \
+    --output builddir \
+    --self-contained false \
+    --os linux \
+    -p:DebugSymbols=false \
+    -p:DebugType=none
+}
+
+package() {
+  cd jellyfin
+  install -vd "$pkgdir/usr/"{lib,bin}
+  cp -r builddir "$pkgdir/usr/lib/jellyfin"
+  ln -sf /usr/lib/jellyfin/jellyfin "$pkgdir/usr/bin/jellyfin"
+  find "$pkgdir/usr/lib/jellyfin" -type d -exec chmod 755 {} +
+  find "$pkgdir/usr/lib/jellyfin" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir/usr/lib/jellyfin/jellyfin"
+
+  cd "$srcdir/jellyfin-packaging/debian/conf"
+  install -vDm644 jellyfin.service -t "$pkgdir/usr/lib/systemd/system"
+  install -vDm644 "$srcdir/sysusers.conf" "$pkgdir/usr/lib/sysusers.d/jellyfin.conf"
+  install -vDm644 "$srcdir/tmpfiles.conf" "$pkgdir/usr/lib/tmpfiles.d/jellyfin.conf"
+  install -vdm750 "$pkgdir/etc/jellyfin"
+  install -vDm640 jellyfin "$pkgdir/etc/jellyfin/jellyfin.env"
+  install -vDm640 logging.json -t "$pkgdir/etc/jellyfin"
+}

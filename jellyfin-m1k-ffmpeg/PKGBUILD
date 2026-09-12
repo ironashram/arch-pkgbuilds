@@ -1,0 +1,138 @@
+# Maintainer: Michele Palazzi <sysdadmin@m1k.cloud>
+# Contributor: George Rawlinson <grawlinson@archlinux.org>
+# Contributor: nyanmisaka <nst799610810@gmail.com>
+# Based on the Arch Linux jellyfin-ffmpeg package.
+pkgname=jellyfin-m1k-ffmpeg
+pkgver=8.1.2p4
+pkgrel=1
+pkgdesc='Jellyfin fork of ffmpeg, pinned build paired with jellyfin-m1k-server'
+arch=(x86_64)
+url='https://github.com/jellyfin/jellyfin-ffmpeg'
+license=(GPL-3.0-only)
+depends=(
+  glibc
+  alsa-lib
+  bzip2
+  fontconfig
+  fribidi
+  gmp
+  gnutls
+  lame
+  libass.so
+  libbluray.so
+  libchromaprint.so
+  libdav1d.so
+  libdrm
+  libfreetype.so
+  libgcc_s.so
+  libopenmpt.so
+  libplacebo.so
+  libtheora
+  libva.so
+  libva-drm.so
+  libvdpau
+  libvorbisenc.so
+  libvorbis.so
+  libvpx.so
+  libwebp
+  libx11
+  libx264.so
+  libx265.so
+  libxext
+  libxml2
+  libzimg.so
+  ocl-icd
+  onevpl
+  opus
+  shaderc
+  sndio
+  srt
+  svt-av1
+  vulkan-icd-loader
+  xz
+  zlib
+  zvbi
+)
+makedepends=(
+  git
+  nasm
+  clang
+  ffnvcodec-headers
+  amf-headers
+  opencl-headers
+  vulkan-headers
+)
+optdepends=(
+  'libva-mesa-driver: for AMD VAAPI support'
+  'vulkan-radeon: for AMD RADV Vulkan support'
+)
+provides=("jellyfin-ffmpeg=1:$pkgver")
+conflicts=(jellyfin-ffmpeg)
+options=(!lto)
+source=("jellyfin-ffmpeg::git+$url#tag=v${pkgver/p/-}")
+sha256sums=('SKIP')
+
+prepare() {
+  cd jellyfin-ffmpeg
+  for i in debian/patches/*.patch; do
+    patch -p1 -i "$i"
+  done
+}
+
+build() {
+  cd jellyfin-ffmpeg
+  ./configure \
+    --prefix="/usr/lib/jellyfin-ffmpeg" \
+    --target-os=linux \
+    --extra-version=Jellyfin \
+    --disable-doc \
+    --disable-ffplay \
+    --disable-shared \
+    --disable-libxcb \
+    --disable-sdl2 \
+    --disable-xlib \
+    --enable-gpl \
+    --enable-version3 \
+    --enable-static \
+    --enable-gmp \
+    --enable-gnutls \
+    --enable-chromaprint \
+    --enable-libfontconfig \
+    --enable-libass \
+    --enable-libbluray \
+    --enable-libdrm \
+    --enable-libfreetype \
+    --enable-libfribidi \
+    --enable-libmp3lame \
+    --enable-libopus \
+    --enable-libopenmpt \
+    --enable-libtheora \
+    --enable-libvorbis \
+    --enable-libdav1d \
+    --enable-libsvtav1 \
+    --enable-libwebp \
+    --enable-libvpx \
+    --enable-libx264 \
+    --enable-libx265 \
+    --enable-libzvbi \
+    --enable-libzimg \
+    --enable-libshaderc \
+    --enable-libplacebo \
+    --enable-vulkan \
+    --enable-opencl \
+    --enable-vaapi \
+    --enable-amf \
+    --enable-libvpl \
+    --enable-ffnvcodec \
+    --enable-cuda \
+    --enable-cuda-llvm \
+    --enable-cuvid \
+    --enable-nvdec \
+    --enable-nvenc
+  make
+}
+
+package() {
+  cd jellyfin-ffmpeg
+  install -vDm755 -t "$pkgdir/usr/lib/jellyfin-ffmpeg" ff{mpeg,probe}
+}

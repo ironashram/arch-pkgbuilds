@@ -1,0 +1,406 @@
+diff --git a/Emby.Server.Implementations/ApplicationHost.cs b/Emby.Server.Implementations/ApplicationHost.cs
+index 1a54565863..534d0734ca 100644
+--- a/Emby.Server.Implementations/ApplicationHost.cs
++++ b/Emby.Server.Implementations/ApplicationHost.cs
+@@ -628,6 +628,7 @@ namespace Emby.Server.Implementations
+             serviceCollection.AddSingleton<IAttachmentExtractor, MediaBrowser.MediaEncoding.Attachments.AttachmentExtractor>();
+ 
+             serviceCollection.AddSingleton<ITranscodeManager, TranscodeManager>();
++            serviceCollection.AddSingleton<DeviceProfileOverrides>();
+             serviceCollection.AddScoped<MediaInfoHelper>();
+             serviceCollection.AddScoped<AudioHelper>();
+             serviceCollection.AddScoped<DynamicHlsHelper>();
+diff --git a/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs b/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs
+new file mode 100644
+index 0000000000..6deda2903f
+--- /dev/null
++++ b/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs
+@@ -0,0 +1,212 @@
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Text.Json;
++using System.Threading;
++using Jellyfin.Extensions.Json;
++using MediaBrowser.Controller.Configuration;
++using MediaBrowser.Model.Dlna;
++using Microsoft.Extensions.Logging;
++
++namespace Jellyfin.Api.Helpers;
++
++/// <summary>
++/// Applies server side overrides to the device profile a client sends with a playback request.
++/// Overrides are read from device-profile-overrides.json in the configuration directory and
++/// reloaded whenever the file changes.
++/// </summary>
++public class DeviceProfileOverrides
++{
++    private const string FileName = "device-profile-overrides.json";
++    private const string NoCodec = "none";
++
++    private readonly string _path;
++    private readonly ILogger<DeviceProfileOverrides> _logger;
++    private readonly Lock _lock = new();
++    private DateTime _loadedWriteTime = DateTime.MinValue;
++    private DeviceProfileOverride[] _entries = [];
++
++    /// <summary>
++    /// Initializes a new instance of the <see cref="DeviceProfileOverrides"/> class.
++    /// </summary>
++    /// <param name="configurationManager">Instance of the <see cref="IServerConfigurationManager"/> interface.</param>
++    /// <param name="logger">Instance of the <see cref="ILogger{DeviceProfileOverrides}"/> interface.</param>
++    public DeviceProfileOverrides(IServerConfigurationManager configurationManager, ILogger<DeviceProfileOverrides> logger)
++    {
++        _path = Path.Combine(configurationManager.CommonApplicationPaths.ConfigurationDirectoryPath, FileName);
++        _logger = logger;
++    }
++
++    /// <summary>
++    /// Applies every override matching the requesting device to the profile, in file order.
++    /// </summary>
++    /// <param name="profile">The device profile sent by the client.</param>
++    /// <param name="deviceId">The device id of the requesting client.</param>
++    /// <param name="client">The client name of the requesting client.</param>
++    /// <returns>The same profile instance, modified in place.</returns>
++    public DeviceProfile Apply(DeviceProfile profile, string? deviceId, string? client)
++    {
++        foreach (var entry in Load())
++        {
++            if (!entry.Matches(deviceId, client))
++            {
++                continue;
++            }
++
++            foreach (var directPlay in profile.DirectPlayProfiles)
++            {
++                directPlay.AudioCodec = Remove(directPlay.AudioCodec, entry.RemoveAudioCodecs);
++                directPlay.VideoCodec = Remove(directPlay.VideoCodec, entry.RemoveVideoCodecs);
++            }
++
++            foreach (var transcoding in profile.TranscodingProfiles)
++            {
++                transcoding.AudioCodec = Prefer(Remove(transcoding.AudioCodec, entry.RemoveAudioCodecs), entry.PreferAudioCodecs);
++                transcoding.VideoCodec = Remove(transcoding.VideoCodec, entry.RemoveVideoCodecs) ?? string.Empty;
++            }
++
++            _logger.LogInformation(
++                "Device profile override applied to {Client} ({DeviceId}): removed audio {RemovedAudio}, removed video {RemovedVideo}, preferred audio {PreferredAudio}",
++                client,
++                deviceId,
++                entry.RemoveAudioCodecs,
++                entry.RemoveVideoCodecs,
++                entry.PreferAudioCodecs);
++        }
++
++        return profile;
++    }
++
++    private DeviceProfileOverride[] Load()
++    {
++        lock (_lock)
++        {
++            var writeTime = File.Exists(_path) ? File.GetLastWriteTimeUtc(_path) : DateTime.MinValue;
++            if (writeTime == _loadedWriteTime)
++            {
++                return _entries;
++            }
++
++            _loadedWriteTime = writeTime;
++            _entries = [];
++            if (writeTime == DateTime.MinValue)
++            {
++                return _entries;
++            }
++
++            try
++            {
++                using var stream = File.OpenRead(_path);
++                var file = JsonSerializer.Deserialize<DeviceProfileOverridesFile>(stream, JsonDefaults.Options);
++                _entries = file?.Overrides ?? [];
++                _logger.LogInformation("Loaded {Count} device profile overrides from {Path}", _entries.Length, _path);
++            }
++            catch (Exception ex) when (ex is JsonException or IOException)
++            {
++                _logger.LogError(ex, "Failed to read device profile overrides from {Path}", _path);
++            }
++
++            return _entries;
++        }
++    }
++
++    /// <summary>
++    /// Removes codecs from a comma separated codec list. An empty list means every codec, so it becomes a
++    /// negative list of the removed codecs. A negative list gets the removed codecs appended. A positive
++    /// list that ends up empty becomes a value no codec can match.
++    /// </summary>
++    private static string? Remove(string? codecs, string[] remove)
++    {
++        if (remove.Length == 0)
++        {
++            return codecs;
++        }
++
++        if (string.IsNullOrEmpty(codecs))
++        {
++            return "-" + string.Join(',', remove);
++        }
++
++        if (codecs.StartsWith('-'))
++        {
++            var negative = Split(codecs[1..]);
++            return "-" + string.Join(',', negative.Union(remove, StringComparer.OrdinalIgnoreCase));
++        }
++
++        var kept = Split(codecs).Where(c => !remove.Contains(c, StringComparer.OrdinalIgnoreCase)).ToArray();
++        return kept.Length == 0 ? NoCodec : string.Join(',', kept);
++    }
++
++    /// <summary>
++    /// Moves the preferred codecs that are present in a positive codec list to its front, keeping their given order.
++    /// </summary>
++    private static string Prefer(string? codecs, string[] prefer)
++    {
++        if (prefer.Length == 0 || string.IsNullOrEmpty(codecs) || codecs.StartsWith('-'))
++        {
++            return codecs ?? string.Empty;
++        }
++
++        var present = Split(codecs);
++        var first = prefer.Where(p => present.Contains(p, StringComparer.OrdinalIgnoreCase));
++        var rest = present.Where(c => !prefer.Contains(c, StringComparer.OrdinalIgnoreCase));
++        return string.Join(',', first.Concat(rest));
++    }
++
++    private static string[] Split(string codecs)
++        => codecs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
++
++    /// <summary>
++    /// The on-disk shape of device-profile-overrides.json.
++    /// </summary>
++    internal sealed class DeviceProfileOverridesFile
++    {
++        /// <summary>
++        /// Gets or sets the overrides, applied in order.
++        /// </summary>
++        public DeviceProfileOverride[] Overrides { get; set; } = [];
++    }
++
++    /// <summary>
++    /// One override entry. Every selector that is set must match for the entry to apply, an entry without
++    /// selectors applies to every client.
++    /// </summary>
++    internal sealed class DeviceProfileOverride
++    {
++        /// <summary>
++        /// Gets or sets the device id to match.
++        /// </summary>
++        public string? DeviceId { get; set; }
++
++        /// <summary>
++        /// Gets or sets the client name to match, as sent in the authorization header.
++        /// </summary>
++        public string? Client { get; set; }
++
++        /// <summary>
++        /// Gets or sets the audio codecs to strip from the direct play and transcoding profiles.
++        /// </summary>
++        public string[] RemoveAudioCodecs { get; set; } = [];
++
++        /// <summary>
++        /// Gets or sets the video codecs to strip from the direct play and transcoding profiles.
++        /// </summary>
++        public string[] RemoveVideoCodecs { get; set; } = [];
++
++        /// <summary>
++        /// Gets or sets the audio codecs to move to the front of the transcoding profiles, so the server encodes to them first.
++        /// </summary>
++        public string[] PreferAudioCodecs { get; set; } = [];
++
++        /// <summary>
++        /// Returns whether this entry applies to the given client.
++        /// </summary>
++        /// <param name="deviceId">The device id of the requesting client.</param>
++        /// <param name="client">The client name of the requesting client.</param>
++        /// <returns>True if the entry applies.</returns>
++        public bool Matches(string? deviceId, string? client)
++            => (string.IsNullOrEmpty(DeviceId) || string.Equals(DeviceId, deviceId, StringComparison.OrdinalIgnoreCase))
++               && (string.IsNullOrEmpty(Client) || string.Equals(Client, client, StringComparison.OrdinalIgnoreCase));
++    }
++}
+diff --git a/Jellyfin.Api/Helpers/MediaInfoHelper.cs b/Jellyfin.Api/Helpers/MediaInfoHelper.cs
+index c27a18831c..aae021de44 100644
+--- a/Jellyfin.Api/Helpers/MediaInfoHelper.cs
++++ b/Jellyfin.Api/Helpers/MediaInfoHelper.cs
+@@ -46,6 +46,7 @@ public class MediaInfoHelper
+     private readonly INetworkManager _networkManager;
+     private readonly IDeviceManager _deviceManager;
+     private readonly IServerApplicationHost _appHost;
++    private readonly DeviceProfileOverrides _deviceProfileOverrides;
+ 
+     /// <summary>
+     /// Initializes a new instance of the <see cref="MediaInfoHelper"/> class.
+@@ -59,6 +60,7 @@ public class MediaInfoHelper
+     /// <param name="networkManager">Instance of the <see cref="INetworkManager"/> interface.</param>
+     /// <param name="deviceManager">Instance of the <see cref="IDeviceManager"/> interface.</param>
+     /// <param name="appHost">Instance of the <see cref="IServerApplicationHost"/> interface.</param>
++    /// <param name="deviceProfileOverrides">Instance of the <see cref="DeviceProfileOverrides"/> class.</param>
+     public MediaInfoHelper(
+         IUserManager userManager,
+         ILibraryManager libraryManager,
+@@ -68,8 +70,10 @@ public class MediaInfoHelper
+         ILogger<MediaInfoHelper> logger,
+         INetworkManager networkManager,
+         IDeviceManager deviceManager,
+-        IServerApplicationHost appHost)
++        IServerApplicationHost appHost,
++        DeviceProfileOverrides deviceProfileOverrides)
+     {
++        _deviceProfileOverrides = deviceProfileOverrides;
+         _userManager = userManager;
+         _libraryManager = libraryManager;
+         _mediaSourceManager = mediaSourceManager;
+@@ -200,6 +204,7 @@ public class MediaInfoHelper
+         bool alwaysBurnInSubtitleWhenTranscoding,
+         IPAddress ipAddress)
+     {
++        profile = _deviceProfileOverrides.Apply(profile, claimsPrincipal.GetDeviceId(), claimsPrincipal.GetClient());
+         var streamBuilder = new StreamBuilder(_mediaEncoder, _logger);
+ 
+         var options = new MediaOptions
+diff --git a/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs b/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs
+new file mode 100644
+index 0000000000..40c7711279
+--- /dev/null
++++ b/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs
+@@ -0,0 +1,93 @@
++using System;
++using System.IO;
++using Jellyfin.Api.Helpers;
++using MediaBrowser.Common.Configuration;
++using MediaBrowser.Controller.Configuration;
++using MediaBrowser.Model.Dlna;
++using Microsoft.Extensions.Logging;
++using Moq;
++using Xunit;
++
++namespace Jellyfin.Api.Tests.Helpers
++{
++    public sealed class DeviceProfileOverridesTests : IDisposable
++    {
++        private readonly string _configDir = Path.Combine(Path.GetTempPath(), "jellyfin-overrides-" + Guid.NewGuid().ToString("N"));
++
++        public DeviceProfileOverridesTests()
++        {
++            Directory.CreateDirectory(_configDir);
++        }
++
++        public void Dispose()
++        {
++            Directory.Delete(_configDir, true);
++        }
++
++        private DeviceProfileOverrides CreateOverrides(string? json)
++        {
++            if (json is not null)
++            {
++                File.WriteAllText(Path.Combine(_configDir, "device-profile-overrides.json"), json);
++            }
++
++            var configurationManager = new Mock<IServerConfigurationManager>();
++            configurationManager
++                .Setup(x => x.CommonApplicationPaths)
++                .Returns(Mock.Of<IApplicationPaths>(p => p.ConfigurationDirectoryPath == _configDir));
++            return new DeviceProfileOverrides(configurationManager.Object, Mock.Of<ILogger<DeviceProfileOverrides>>());
++        }
++
++        private static DeviceProfile CreateProfile()
++        {
++            return new DeviceProfile
++            {
++                DirectPlayProfiles =
++                [
++                    new DirectPlayProfile { Type = DlnaProfileType.Video, Container = "mkv", VideoCodec = "hevc,h264", AudioCodec = "aac,ac3,eac3,truehd" },
++                    new DirectPlayProfile { Type = DlnaProfileType.Audio, AudioCodec = "truehd" },
++                    new DirectPlayProfile { Type = DlnaProfileType.Video, Container = "mp4" }
++                ],
++                TranscodingProfiles =
++                [
++                    new TranscodingProfile { Type = DlnaProfileType.Video, Container = "mp4", VideoCodec = "hevc,h264", AudioCodec = "aac,ac3,eac3,truehd" }
++                ]
++            };
++        }
++
++        [Fact]
++        public void Apply_MatchingDevice_RemovesAndReordersCodecs()
++        {
++            const string Json = """
++                {"Overrides": [{"DeviceId": "tv-1", "RemoveAudioCodecs": ["truehd"], "PreferAudioCodecs": ["eac3", "ac3"]}]}
++                """;
++            var profile = CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Some Client");
++
++            Assert.Equal("aac,ac3,eac3", profile.DirectPlayProfiles[0].AudioCodec);
++            Assert.Equal("none", profile.DirectPlayProfiles[1].AudioCodec);
++            Assert.Equal("-truehd", profile.DirectPlayProfiles[2].AudioCodec);
++            Assert.Equal("hevc,h264", profile.DirectPlayProfiles[0].VideoCodec);
++            Assert.Equal("eac3,ac3,aac", profile.TranscodingProfiles[0].AudioCodec);
++        }
++
++        [Fact]
++        public void Apply_OtherDevice_LeavesProfileUntouched()
++        {
++            const string Json = """
++                {"Overrides": [{"DeviceId": "tv-1", "Client": "Some Client", "RemoveAudioCodecs": ["truehd"]}]}
++                """;
++            var profile = CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Other Client");
++
++            Assert.Equal("aac,ac3,eac3,truehd", profile.DirectPlayProfiles[0].AudioCodec);
++            Assert.Equal("aac,ac3,eac3,truehd", profile.TranscodingProfiles[0].AudioCodec);
++        }
++
++        [Fact]
++        public void Apply_NoFile_LeavesProfileUntouched()
++        {
++            var profile = CreateOverrides(null).Apply(CreateProfile(), "tv-1", "Some Client");
++
++            Assert.Equal("aac,ac3,eac3,truehd", profile.DirectPlayProfiles[0].AudioCodec);
++        }
++    }
++}
+diff --git a/tests/Jellyfin.Api.Tests/Helpers/MediaInfoHelperTests.cs b/tests/Jellyfin.Api.Tests/Helpers/MediaInfoHelperTests.cs
+index fe824eddd9..90001125f8 100644
+--- a/tests/Jellyfin.Api.Tests/Helpers/MediaInfoHelperTests.cs
++++ b/tests/Jellyfin.Api.Tests/Helpers/MediaInfoHelperTests.cs
+@@ -1,10 +1,12 @@
+ using System;
+ using System.Globalization;
++using System.IO;
+ using System.Text.Json;
+ using System.Threading;
+ using System.Threading.Tasks;
+ using Jellyfin.Api.Helpers;
+ using Jellyfin.Database.Implementations.Entities;
++using MediaBrowser.Common.Configuration;
+ using MediaBrowser.Common.Net;
+ using MediaBrowser.Controller;
+ using MediaBrowser.Controller.Configuration;
+@@ -35,6 +37,9 @@ namespace Jellyfin.Api.Tests.Helpers
+             serverConfigurationManager
+                 .Setup(x => x.GetConfiguration(It.IsAny<string>()))
+                 .Returns(new NetworkConfiguration { BaseUrl = baseUrl });
++            serverConfigurationManager
++                .Setup(x => x.CommonApplicationPaths)
++                .Returns(Mock.Of<IApplicationPaths>(p => p.ConfigurationDirectoryPath == Path.GetTempPath()));
+ 
+             return new MediaInfoHelper(
+                 Mock.Of<IUserManager>(),
+@@ -45,7 +50,8 @@ namespace Jellyfin.Api.Tests.Helpers
+                 Mock.Of<ILogger<MediaInfoHelper>>(),
+                 Mock.Of<INetworkManager>(),
+                 Mock.Of<IDeviceManager>(),
+-                appHost ?? Mock.Of<IServerApplicationHost>());
++                appHost ?? Mock.Of<IServerApplicationHost>(),
++                new DeviceProfileOverrides(serverConfigurationManager.Object, Mock.Of<ILogger<DeviceProfileOverrides>>()));
+         }
+ 
+         private static MediaSourceInfo CreateSource(Guid itemId, int bitrate, bool supportsDirectPlay = true)
