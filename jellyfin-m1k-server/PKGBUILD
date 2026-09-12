@@ -4,7 +4,7 @@
 # Based on the Arch Linux jellyfin-server package.
 pkgname=jellyfin-m1k-server
 pkgver=12.0
-pkgrel=3
+pkgrel=4
 pkgdesc='Jellyfin server backend with per-device profile overrides'
 arch=(x86_64)
 url='https://jellyfin.org'

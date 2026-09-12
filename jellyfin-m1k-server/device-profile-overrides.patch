@@ -12,10 +12,10 @@ index 1a54565863..534d0734ca 100644
              serviceCollection.AddScoped<DynamicHlsHelper>();
 diff --git a/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs b/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs
 new file mode 100644
-index 0000000000..fae3667977
+index 0000000000..c3494c1f2f
 --- /dev/null
 +++ b/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs
-@@ -0,0 +1,218 @@
+@@ -0,0 +1,223 @@
 +using System;
 +using System.Collections.Generic;
 +using System.IO;
@@ -62,9 +62,12 @@ index 0000000000..fae3667977
 +    /// <param name="profile">The device profile sent by the client.</param>
 +    /// <param name="deviceId">The device id of the requesting client.</param>
 +    /// <param name="client">The client name of the requesting client.</param>
++    /// <param name="removedAudioCodecs">Whether a matching entry stripped audio codecs, in which
++    /// case the caller must pin the audio stream so the stream builder cannot reselect around it.</param>
 +    /// <returns>The same profile instance, modified in place.</returns>
-+    public DeviceProfile Apply(DeviceProfile profile, string? deviceId, string? client)
++    public DeviceProfile Apply(DeviceProfile profile, string? deviceId, string? client, out bool removedAudioCodecs)
 +    {
++        removedAudioCodecs = false;
 +        var entries = Load();
 +        if (entries.Length > 0)
 +        {
@@ -77,6 +80,8 @@ index 0000000000..fae3667977
 +            {
 +                continue;
 +            }
++
++            removedAudioCodecs |= entry.RemoveAudioCodecs.Length > 0;
 +
 +            foreach (var directPlay in profile.DirectPlayProfiles)
 +            {
@@ -235,7 +240,7 @@ index 0000000000..fae3667977
 +    }
 +}
 diff --git a/Jellyfin.Api/Helpers/MediaInfoHelper.cs b/Jellyfin.Api/Helpers/MediaInfoHelper.cs
-index c27a18831c..aae021de44 100644
+index c27a18831c..5a4a897717 100644
 --- a/Jellyfin.Api/Helpers/MediaInfoHelper.cs
 +++ b/Jellyfin.Api/Helpers/MediaInfoHelper.cs
 @@ -46,6 +46,7 @@ public class MediaInfoHelper
@@ -266,14 +271,35 @@ index c27a18831c..aae021de44 100644
          _userManager = userManager;
          _libraryManager = libraryManager;
          _mediaSourceManager = mediaSourceManager;
-@@ -200,6 +204,7 @@ public class MediaInfoHelper
+@@ -200,6 +204,11 @@ public class MediaInfoHelper
          bool alwaysBurnInSubtitleWhenTranscoding,
          IPAddress ipAddress)
      {
-+        profile = _deviceProfileOverrides.Apply(profile, claimsPrincipal.GetDeviceId(), claimsPrincipal.GetClient());
++        profile = _deviceProfileOverrides.Apply(
++            profile,
++            claimsPrincipal.GetDeviceId(),
++            claimsPrincipal.GetClient(),
++            out var removedAudioCodecs);
          var streamBuilder = new StreamBuilder(_mediaEncoder, _logger);
  
          var options = new MediaOptions
+@@ -222,6 +231,16 @@ public class MediaInfoHelper
+             options.SubtitleStreamIndex = subtitleStreamIndex;
+         }
+ 
++        // Stripping a codec only forces a transcode of the intended track when the stream builder
++        // cannot reselect around it. With no explicit index it is free to pick any other stream
++        // whose codec survived the strip, and it matches on codec alone, so a client that declares
++        // no audio codec list at all ends up on a different language. Pinning the index the server
++        // already resolved keeps the track and turns the strip into a transcode.
++        if (removedAudioCodecs && options.AudioStreamIndex is null)
++        {
++            options.AudioStreamIndex = mediaSource.DefaultAudioStreamIndex;
++        }
++
+         var user = _userManager.GetUserById(userId) ?? throw new ResourceNotFoundException();
+ 
+         if (!enableDirectPlay)
 diff --git a/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs b/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
 index 91d0c3d5a6..8742efe885 100644
 --- a/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
@@ -288,10 +314,10 @@ index 91d0c3d5a6..8742efe885 100644
              "libmp3lame",
 diff --git a/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs b/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs
 new file mode 100644
-index 0000000000..40c7711279
+index 0000000000..8b4235e596
 --- /dev/null
 +++ b/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,128 @@
 +using System;
 +using System.IO;
 +using Jellyfin.Api.Helpers;
@@ -355,7 +381,7 @@ index 0000000000..40c7711279
 +            const string Json = """
 +                {"Overrides": [{"DeviceId": "tv-1", "RemoveAudioCodecs": ["truehd"], "PreferAudioCodecs": ["eac3", "ac3"]}]}
 +                """;
-+            var profile = CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Some Client");
++            var profile = CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Some Client", out _);
 +
 +            Assert.Equal("aac,ac3,eac3", profile.DirectPlayProfiles[0].AudioCodec);
 +            Assert.Equal("none", profile.DirectPlayProfiles[1].AudioCodec);
@@ -370,7 +396,7 @@ index 0000000000..40c7711279
 +            const string Json = """
 +                {"Overrides": [{"DeviceId": "tv-1", "Client": "Some Client", "RemoveAudioCodecs": ["truehd"]}]}
 +                """;
-+            var profile = CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Other Client");
++            var profile = CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Other Client", out _);
 +
 +            Assert.Equal("aac,ac3,eac3,truehd", profile.DirectPlayProfiles[0].AudioCodec);
 +            Assert.Equal("aac,ac3,eac3,truehd", profile.TranscodingProfiles[0].AudioCodec);
@@ -379,9 +405,44 @@ index 0000000000..40c7711279
 +        [Fact]
 +        public void Apply_NoFile_LeavesProfileUntouched()
 +        {
-+            var profile = CreateOverrides(null).Apply(CreateProfile(), "tv-1", "Some Client");
++            var profile = CreateOverrides(null).Apply(CreateProfile(), "tv-1", "Some Client", out _);
 +
 +            Assert.Equal("aac,ac3,eac3,truehd", profile.DirectPlayProfiles[0].AudioCodec);
++        }
++
++        [Fact]
++        public void Apply_RemovingCodecs_ReportsRemoval()
++        {
++            const string Json = """
++                {"Overrides": [{"DeviceId": "tv-1", "RemoveAudioCodecs": ["truehd"]}]}
++                """;
++            CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Some Client", out var removed);
++
++            Assert.True(removed);
++        }
++
++        [Fact]
++        public void Apply_OtherDevice_ReportsNoRemoval()
++        {
++            const string Json = """
++                {"Overrides": [{"DeviceId": "tv-1", "RemoveAudioCodecs": ["truehd"]}]}
++                """;
++            CreateOverrides(Json).Apply(CreateProfile(), "tv-2", "Some Client", out var removed);
++
++            Assert.False(removed);
++        }
++
++        [Fact]
++        public void Apply_ReorderingOnly_ReportsNoRemoval()
++        {
++            // Reordering must not report a removal: the caller pins the audio index on a removal,
++            // and an entry that only reorders has taken nothing away to pin around.
++            const string Json = """
++                {"Overrides": [{"DeviceId": "tv-1", "PreferAudioCodecs": ["eac3"]}]}
++                """;
++            CreateOverrides(Json).Apply(CreateProfile(), "tv-1", "Some Client", out var removed);
++
++            Assert.False(removed);
 +        }
 +    }
 +}
