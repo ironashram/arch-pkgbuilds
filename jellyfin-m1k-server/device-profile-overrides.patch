@@ -12,10 +12,10 @@ index 1a54565863..534d0734ca 100644
              serviceCollection.AddScoped<DynamicHlsHelper>();
 diff --git a/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs b/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs
 new file mode 100644
-index 0000000000..6deda2903f
+index 0000000000..fae3667977
 --- /dev/null
 +++ b/Jellyfin.Api/Helpers/DeviceProfileOverrides.cs
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,218 @@
 +using System;
 +using System.Collections.Generic;
 +using System.IO;
@@ -65,7 +65,13 @@ index 0000000000..6deda2903f
 +    /// <returns>The same profile instance, modified in place.</returns>
 +    public DeviceProfile Apply(DeviceProfile profile, string? deviceId, string? client)
 +    {
-+        foreach (var entry in Load())
++        var entries = Load();
++        if (entries.Length > 0)
++        {
++            _logger.LogInformation("Device profile overrides: checking {Client} ({DeviceId}) against {Count} entries", client, deviceId, entries.Length);
++        }
++
++        foreach (var entry in entries)
 +        {
 +            if (!entry.Matches(deviceId, client))
 +            {
@@ -268,6 +274,18 @@ index c27a18831c..aae021de44 100644
          var streamBuilder = new StreamBuilder(_mediaEncoder, _logger);
  
          var options = new MediaOptions
+diff --git a/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs b/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
+index 91d0c3d5a6..8742efe885 100644
+--- a/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
++++ b/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
+@@ -70,6 +70,7 @@ namespace MediaBrowser.MediaEncoding.Encoder
+             "aac_at",
+             "libfdk_aac",
+             "ac3",
++            "eac3",
+             "alac",
+             "dca",
+             "libmp3lame",
 diff --git a/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs b/tests/Jellyfin.Api.Tests/Helpers/DeviceProfileOverridesTests.cs
 new file mode 100644
 index 0000000000..40c7711279
