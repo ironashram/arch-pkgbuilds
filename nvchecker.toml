@@ -70,3 +70,9 @@ github = "ironashram/openconnect-fortinet-saml"
 include_regex = "v[0-9.]+"
 use_max_tag = true
 prefix = "v"
+
+[plezy-m1k]
+source = "github"
+github = "ironashram/plezy"
+include_regex = "[0-9.]+"
+use_latest_release = true
