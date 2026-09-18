@@ -4,7 +4,7 @@
 # Contributor: Aburady <accounts@aburady.com>
 
 pkgname=plezy-m1k
-pkgver=2.20.153
+pkgver=2.20.154
 pkgrel=1
 pkgdesc="A modern Plex and Jellyfin client, ironashram fork with the TrueHD passthrough and Live TV fixes"
 arch=('x86_64')
@@ -25,7 +25,7 @@ source=(
   "$url/raw/$_tag/assets/plezy.svg"
   "$url/raw/$_tag/assets/plezy.png"
 )
-sha256sums=('d1c22299b9776655d93151e4ff149ec669a7f8dac4cd4fb619e73a0c4549bf11'
+sha256sums=('521c0e67e2e118aa79ab42f5759ae3b32befbfcaec7038faaa24e8594aa35750'
             'fe0562829eedf1ad979e4a26e936a3e7e133c0360a2418a39d6b686f4b64e4b8'
             '0ae31068bbfdd6e8ec40c16c0759825d430da8b9ac47d7b8ab4c17d7f208ee5e'
             '8797e88801616f539799a4647fc42a37caa69e689dbf4321acd588fbd054d919')
