@@ -1,6 +1,6 @@
 pkgbase = plezy-m1k
 	pkgdesc = A modern Plex and Jellyfin client, ironashram fork with the TrueHD passthrough and Live TV fixes
-	pkgver = 2.20.152
+	pkgver = 2.20.153
 	pkgrel = 1
 	url = https://github.com/ironashram/plezy
 	arch = x86_64
@@ -19,14 +19,14 @@ pkgbase = plezy-m1k
 	depends = libxext
 	depends = libxcb
 	depends = hicolor-icon-theme
-	provides = plezy=2.20.152
+	provides = plezy=2.20.153
 	conflicts = plezy
-	noextract = plezy-m1k-2.20.152.tar.gz
-	source = plezy-m1k-2.20.152.tar.gz::https://github.com/ironashram/plezy/releases/download/2.20.152/plezy-linux-x64.tar.gz
-	source = https://github.com/ironashram/plezy/raw/2.20.152/linux/packaging/com.edde746.plezy.desktop
-	source = https://github.com/ironashram/plezy/raw/2.20.152/assets/plezy.svg
-	source = https://github.com/ironashram/plezy/raw/2.20.152/assets/plezy.png
-	sha256sums = 6fbf21e8d46a43af800efa015174fdad5b4a3e3b363fbc573d573235f5129f5e
+	noextract = plezy-m1k-2.20.153.tar.gz
+	source = plezy-m1k-2.20.153.tar.gz::https://github.com/ironashram/plezy/releases/download/2.20.153/plezy-linux-x64.tar.gz
+	source = https://github.com/ironashram/plezy/raw/2.20.153/linux/packaging/com.edde746.plezy.desktop
+	source = https://github.com/ironashram/plezy/raw/2.20.153/assets/plezy.svg
+	source = https://github.com/ironashram/plezy/raw/2.20.153/assets/plezy.png
+	sha256sums = d1c22299b9776655d93151e4ff149ec669a7f8dac4cd4fb619e73a0c4549bf11
 	sha256sums = fe0562829eedf1ad979e4a26e936a3e7e133c0360a2418a39d6b686f4b64e4b8
 	sha256sums = 0ae31068bbfdd6e8ec40c16c0759825d430da8b9ac47d7b8ab4c17d7f208ee5e
 	sha256sums = 8797e88801616f539799a4647fc42a37caa69e689dbf4321acd588fbd054d919
