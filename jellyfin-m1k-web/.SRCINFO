@@ -1,6 +1,6 @@
 pkgbase = jellyfin-m1k-web
 	pkgdesc = Web client for Jellyfin, pinned build paired with jellyfin-m1k-server
-	pkgver = 12.0
+	pkgver = 12.1
 	pkgrel = 1
 	url = https://jellyfin.org
 	arch = any
@@ -8,9 +8,9 @@ pkgbase = jellyfin-m1k-web
 	makedepends = git
 	makedepends = nodejs
 	makedepends = npm
-	provides = jellyfin-web=12.0
+	provides = jellyfin-web=12.1
 	conflicts = jellyfin-web
-	source = jellyfin-web::git+https://github.com/jellyfin/jellyfin-web#tag=v12.0
+	source = jellyfin-web::git+https://github.com/jellyfin/jellyfin-web#tag=v12.1
 	sha256sums = SKIP
 
 pkgname = jellyfin-m1k-web

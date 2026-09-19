@@ -3,13 +3,13 @@
 # Contributor: Giovanni Harting <anonfunc@archlinux.org>
 # Based on the Arch Linux jellyfin-server package.
 pkgname=jellyfin-m1k-server
-pkgver=12.0
-pkgrel=4
+pkgver=12.1
+pkgrel=1
 pkgdesc='Jellyfin server backend with per-device profile overrides'
 arch=(x86_64)
 url='https://jellyfin.org'
 _url='https://github.com/jellyfin/jellyfin'
-_packaging_tag='v12.0-202609072105'
+_packaging_tag='v12.1-202609142034'
 license=(GPL-2.0-or-later)
 depends=(
   glibc
@@ -53,7 +53,7 @@ sha256sums=('SKIP'
             '67766e0cca84127ea8f648b1b2e781fdeaeda931ab452ce7045c5de620b88d8d'
             '1feeb29c0344194cb0e268caafaf7116b71f5f44b2962a1068f5c187b1e81a6d'
             '377c9bd13120431ba71e311b907644722c5cc9b9115793ad0d7f25adda7d99c6'
-            'ca93a1e7605fdd3fc72fa3dd1970ae0363657c586e5bc60fed4b748fec4d6439')
+            '984fe87665debb24d8f469f37afe1e9785042831c70412676e96d4b5f3e71893')
 
 prepare() {
   cd jellyfin-packaging

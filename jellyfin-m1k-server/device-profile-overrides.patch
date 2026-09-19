@@ -301,7 +301,7 @@ index c27a18831c..5a4a897717 100644
  
          if (!enableDirectPlay)
 diff --git a/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs b/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
-index 91d0c3d5a6..8742efe885 100644
+index 99c08eb9a1..743ef8a448 100644
 --- a/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
 +++ b/MediaBrowser.MediaEncoding/Encoder/EncoderValidator.cs
 @@ -70,6 +70,7 @@ namespace MediaBrowser.MediaEncoding.Encoder

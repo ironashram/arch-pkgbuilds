@@ -3,7 +3,7 @@
 # Contributor: Giovanni Harting <anonfunc@archlinux.org>
 # Based on the Arch Linux jellyfin-web package.
 pkgname=jellyfin-m1k-web
-pkgver=12.0
+pkgver=12.1
 pkgrel=1
 pkgdesc='Web client for Jellyfin, pinned build paired with jellyfin-m1k-server'
 arch=(any)
