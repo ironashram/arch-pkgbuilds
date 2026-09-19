@@ -1,7 +1,7 @@
 pkgbase = jellyfin-m1k-server
 	pkgdesc = Jellyfin server backend with per-device profile overrides and rule backed playlists
 	pkgver = 12.1
-	pkgrel = 2
+	pkgrel = 4
 	url = https://jellyfin.org
 	arch = x86_64
 	license = GPL-2.0-or-later
@@ -37,6 +37,6 @@ pkgbase = jellyfin-m1k-server
 	sha256sums = 67766e0cca84127ea8f648b1b2e781fdeaeda931ab452ce7045c5de620b88d8d
 	sha256sums = 1feeb29c0344194cb0e268caafaf7116b71f5f44b2962a1068f5c187b1e81a6d
 	sha256sums = 377c9bd13120431ba71e311b907644722c5cc9b9115793ad0d7f25adda7d99c6
-	sha256sums = 3009e9e7167737702479c59207bc63d89f953fd68c5e87b155717b87402a07ec
+	sha256sums = 2fd279902a9a97cc715d0421eaa239945f669b8df33c4c00b7957b1566d64314
 
 pkgname = jellyfin-m1k-server
