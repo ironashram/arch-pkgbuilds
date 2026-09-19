@@ -46,6 +46,7 @@ source=(
   fix-envfile-path.patch
   use-system-jemalloc.patch
   device-profile-overrides.patch
+  smart-playlists.patch
 )
 sha256sums=('25f4e76acfc5a28a348533f83047cd7c0f3c3fb93e169a3030be166be2cdaf6e'
             '2489e3b6e338209682a5b057982e87d1b8d8b7e00fc6caec10c30dc47b6ba28b'
@@ -53,7 +54,8 @@ sha256sums=('25f4e76acfc5a28a348533f83047cd7c0f3c3fb93e169a3030be166be2cdaf6e'
             '67766e0cca84127ea8f648b1b2e781fdeaeda931ab452ce7045c5de620b88d8d'
             '1feeb29c0344194cb0e268caafaf7116b71f5f44b2962a1068f5c187b1e81a6d'
             '377c9bd13120431ba71e311b907644722c5cc9b9115793ad0d7f25adda7d99c6'
-            '2fd279902a9a97cc715d0421eaa239945f669b8df33c4c00b7957b1566d64314')
+            '984fe87665debb24d8f469f37afe1e9785042831c70412676e96d4b5f3e71893'
+            '92e0193fa7a3fc8304d6c9de240c41bfd2f899aba2bbdef3f74853a1e4de4cbf')
 
 prepare() {
   cd jellyfin-packaging
@@ -62,6 +64,7 @@ prepare() {
 
   cd "$srcdir/jellyfin"
   patch -p1 -i "$srcdir/device-profile-overrides.patch"
+  patch -p1 -i "$srcdir/smart-playlists.patch"
 }
 
 build() {

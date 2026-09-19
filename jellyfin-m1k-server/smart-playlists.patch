@@ -1,0 +1,578 @@
+diff --git a/Jellyfin.Api/Controllers/PlaylistsController.cs b/Jellyfin.Api/Controllers/PlaylistsController.cs
+index 9bfe0f2570..e9e75377b4 100644
+--- a/Jellyfin.Api/Controllers/PlaylistsController.cs
++++ b/Jellyfin.Api/Controllers/PlaylistsController.cs
+@@ -538,7 +538,12 @@ public class PlaylistsController : BaseJellyfinApiController
+         }
+ 
+         var user = _userManager.GetUserById(callingUserId);
+-        var items = playlist.GetManageableItems().Where(i => i.Item2.IsVisible(user)).ToArray();
++
++        var smartRule = SmartPlaylistRules.For(playlist.Name);
++        var manageable = smartRule is null
++            ? playlist.GetManageableItems()
++            : SmartPlaylistRules.ResolveManageable(smartRule, user);
++        var items = manageable.Where(i => i.Item2.IsVisible(user)).ToArray();
+         var count = items.Length;
+         if (startIndex.HasValue)
+         {
+diff --git a/MediaBrowser.Controller/Playlists/Playlist.cs b/MediaBrowser.Controller/Playlists/Playlist.cs
+index edf3fb25c9..dad8c5f9bd 100644
+--- a/MediaBrowser.Controller/Playlists/Playlist.cs
++++ b/MediaBrowser.Controller/Playlists/Playlist.cs
+@@ -167,6 +167,12 @@ namespace MediaBrowser.Controller.Playlists
+ 
+             query.IsFolder = false;
+ 
++            var rule = SmartPlaylistRules.For(Name);
++            if (rule is not null)
++            {
++                return SmartPlaylistRules.Resolve(rule, user);
++            }
++
+             return base.GetChildren(user, true, query);
+         }
+ 
+diff --git a/MediaBrowser.Controller/Playlists/SmartPlaylistRule.cs b/MediaBrowser.Controller/Playlists/SmartPlaylistRule.cs
+new file mode 100644
+index 0000000000..134fc57b93
+--- /dev/null
++++ b/MediaBrowser.Controller/Playlists/SmartPlaylistRule.cs
+@@ -0,0 +1,69 @@
++#nullable enable
++
++namespace MediaBrowser.Controller.Playlists;
++
++/// <summary>
++/// One rule from smart-playlists.json, matched to a playlist by name.
++/// </summary>
++public sealed class SmartPlaylistRule
++{
++    /// <summary>
++    /// Gets or sets the playlist name this rule drives.
++    /// </summary>
++    public string? Name { get; set; }
++
++    /// <summary>
++    /// Gets or sets genres the item must carry exactly.
++    /// </summary>
++    public string[] Genres { get; set; } = [];
++
++    /// <summary>
++    /// Gets or sets substrings a genre must contain.
++    /// </summary>
++    public string[] GenreContains { get; set; } = [];
++
++    /// <summary>
++    /// Gets or sets substrings an album artist must contain.
++    /// </summary>
++    public string[] AlbumArtistContains { get; set; } = [];
++
++    /// <summary>
++    /// Gets or sets genres that reject the item outright.
++    /// </summary>
++    public string[] ExcludeGenres { get; set; } = [];
++
++    /// <summary>
++    /// Gets or sets genre substrings that reject the item outright.
++    /// </summary>
++    public string[] ExcludeGenreContains { get; set; } = [];
++
++    /// <summary>
++    /// Gets or sets album-name substrings that reject the item outright.
++    /// </summary>
++    public string[] ExcludeAlbumContains { get; set; } = [];
++
++    /// <summary>
++    /// Gets or sets a value indicating whether only favorites are selected.
++    /// </summary>
++    public bool Favorites { get; set; }
++
++    /// <summary>
++    /// Gets or sets how recently the item must have been played, in days. Zero disables the check.
++    /// </summary>
++    public int PlayedWithinDays { get; set; }
++
++    /// <summary>
++    /// Gets or sets the sort field: album, datecreated, dateplayed, or name.
++    /// </summary>
++    public string? SortBy { get; set; }
++
++    /// <summary>
++    /// Gets or sets a value indicating whether the sort is reversed.
++    /// </summary>
++    public bool Descending { get; set; }
++
++    /// <summary>
++    /// Gets or sets the maximum number of items. Zero means no limit.
++    /// </summary>
++    public int Limit { get; set; }
++}
+diff --git a/MediaBrowser.Controller/Playlists/SmartPlaylistRules.cs b/MediaBrowser.Controller/Playlists/SmartPlaylistRules.cs
+new file mode 100644
+index 0000000000..53d463923e
+--- /dev/null
++++ b/MediaBrowser.Controller/Playlists/SmartPlaylistRules.cs
+@@ -0,0 +1,331 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Text.Json;
++using System.Threading;
++using Jellyfin.Data.Enums;
++using Jellyfin.Database.Implementations.Entities;
++using MediaBrowser.Controller.Entities;
++using MediaBrowser.Controller.Entities.Audio;
++using Microsoft.Extensions.Logging;
++
++namespace MediaBrowser.Controller.Playlists;
++
++/// <summary>
++/// Rule backed playlists, read from smart-playlists.json in the configuration directory.
++/// </summary>
++public static class SmartPlaylistRules
++{
++    private const string FileName = "smart-playlists.json";
++
++    private static readonly Lock _gate = new();
++    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
++
++    private static DateTime _loadedWriteTime = DateTime.MinValue;
++    private static SmartPlaylistRule[] _rules = [];
++
++    /// <summary>
++    /// Finds the rule for a playlist name, or null when the playlist is an ordinary one.
++    /// </summary>
++    /// <param name="name">The playlist name.</param>
++    /// <returns>The matching rule, or null.</returns>
++    public static SmartPlaylistRule? For(string? name)
++    {
++        if (string.IsNullOrEmpty(name))
++        {
++            return null;
++        }
++
++        foreach (var rule in Load())
++        {
++            if (string.Equals(rule.Name, name, StringComparison.OrdinalIgnoreCase))
++            {
++                return rule;
++            }
++        }
++
++        return null;
++    }
++
++    /// <summary>
++    /// Resolves a rule into the items it currently selects.
++    /// </summary>
++    /// <param name="rule">The rule to resolve.</param>
++    /// <param name="user">The user the playlist is being read for.</param>
++    /// <returns>The selected items, ordered and limited by the rule.</returns>
++    public static IReadOnlyList<BaseItem> Resolve(SmartPlaylistRule rule, User? user)
++    {
++        var query = new InternalItemsQuery(user)
++        {
++            IncludeItemTypes = [BaseItemKind.Audio],
++            Recursive = true,
++            IsFolder = false,
++        };
++
++        if (rule.Favorites)
++        {
++            query.IsFavorite = true;
++        }
++
++        var items = BaseItem.LibraryManager.GetItemList(query);
++        var selected = new List<BaseItem>(items.Count);
++        foreach (var item in items)
++        {
++            if (Matches(rule, item.Genres, AlbumArtistsOf(item), AlbumOf(item)))
++            {
++                selected.Add(item);
++            }
++        }
++
++        if (rule.PlayedWithinDays > 0 && user is not null)
++        {
++            selected = WithinPlayedWindow(selected, user, rule.PlayedWithinDays);
++        }
++
++        Sort(selected, rule, user);
++
++        if (rule.Limit > 0 && selected.Count > rule.Limit)
++        {
++            selected.RemoveRange(rule.Limit, selected.Count - rule.Limit);
++        }
++
++        return selected;
++    }
++
++    /// <summary>
++    /// Resolves a rule into the item and linked child pairing the playlist items endpoint expects.
++    /// </summary>
++    /// <param name="rule">The rule to resolve.</param>
++    /// <param name="user">The user the playlist is being read for.</param>
++    /// <returns>The selected items, each paired with a linked child naming it.</returns>
++    public static IReadOnlyList<Tuple<LinkedChild, BaseItem>> ResolveManageable(SmartPlaylistRule rule, User? user)
++    {
++        var items = Resolve(rule, user);
++        var pairs = new List<Tuple<LinkedChild, BaseItem>>(items.Count);
++        foreach (var item in items)
++        {
++            pairs.Add(new Tuple<LinkedChild, BaseItem>(LinkedChild.Create(item), item));
++        }
++
++        return pairs;
++    }
++
++    /// <summary>
++    /// Whether an item's tags satisfy a rule. Include terms are OR'd across every include field,
++    /// a rule with none accepts everything, and any exclusion match rejects the item.
++    /// </summary>
++    /// <param name="rule">The rule to apply.</param>
++    /// <param name="genres">The item's genres.</param>
++    /// <param name="albumArtists">The item's album artists.</param>
++    /// <param name="album">The item's album name.</param>
++    /// <returns>True when the item belongs in the playlist.</returns>
++    public static bool Matches(SmartPlaylistRule rule, IReadOnlyList<string>? genres, IReadOnlyList<string>? albumArtists, string? album)
++    {
++        var parts = SplitGenres(genres);
++        albumArtists ??= [];
++
++        if (AnyEquals(parts, rule.ExcludeGenres)
++            || AnyContains(parts, rule.ExcludeGenreContains)
++            || Contains(album, rule.ExcludeAlbumContains))
++        {
++            return false;
++        }
++
++        var hasIncludes = rule.Genres.Length > 0 || rule.GenreContains.Length > 0 || rule.AlbumArtistContains.Length > 0;
++        if (!hasIncludes)
++        {
++            return true;
++        }
++
++        return AnyEquals(parts, rule.Genres)
++            || AnyContains(parts, rule.GenreContains)
++            || AnyContains(albumArtists, rule.AlbumArtistContains);
++    }
++
++    private static List<BaseItem> WithinPlayedWindow(List<BaseItem> items, User user, int days)
++    {
++        var cutoff = DateTime.UtcNow.AddDays(-days);
++        var userData = BaseItem.UserDataManager.GetUserDataBatch(items, user);
++        var kept = new List<BaseItem>(items.Count);
++        foreach (var item in items)
++        {
++            if (userData.TryGetValue(item.Id, out var data) && data.LastPlayedDate >= cutoff)
++            {
++                kept.Add(item);
++            }
++        }
++
++        return kept;
++    }
++
++    private static void Sort(List<BaseItem> items, SmartPlaylistRule rule, User? user)
++    {
++        Comparison<BaseItem> comparison = rule.SortBy?.ToLowerInvariant() switch
++        {
++            "album" => (a, b) => string.Compare(AlbumOf(a), AlbumOf(b), StringComparison.OrdinalIgnoreCase),
++            "datecreated" => (a, b) => a.DateCreated.CompareTo(b.DateCreated),
++            "dateplayed" => (a, b) => LastPlayed(a, user).CompareTo(LastPlayed(b, user)),
++            _ => (a, b) => string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase),
++        };
++
++        items.Sort(comparison);
++        if (rule.Descending)
++        {
++            items.Reverse();
++        }
++    }
++
++    private static DateTime LastPlayed(BaseItem item, User? user)
++    {
++        if (user is null)
++        {
++            return DateTime.MinValue;
++        }
++
++        return BaseItem.UserDataManager.GetUserData(user, item)?.LastPlayedDate ?? DateTime.MinValue;
++    }
++
++    private static IReadOnlyList<string> AlbumArtistsOf(BaseItem item)
++        => item is Audio audio ? audio.AlbumArtists : [];
++
++    private static string? AlbumOf(BaseItem item)
++        => item is Audio audio ? audio.Album : null;
++
++    private static IReadOnlyList<string> SplitGenres(IReadOnlyList<string>? genres)
++    {
++        if (genres is null || genres.Count == 0)
++        {
++            return [];
++        }
++
++        var split = new List<string>(genres.Count);
++        foreach (var genre in genres)
++        {
++            if (string.IsNullOrEmpty(genre))
++            {
++                continue;
++            }
++
++            if (genre.Contains(';', StringComparison.Ordinal))
++            {
++                split.AddRange(genre.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
++            }
++            else
++            {
++                split.Add(genre);
++            }
++        }
++
++        return split;
++    }
++
++    private static bool AnyEquals(IReadOnlyList<string> values, string[] terms)
++    {
++        foreach (var term in terms)
++        {
++            foreach (var value in values)
++            {
++                if (string.Equals(value, term, StringComparison.OrdinalIgnoreCase))
++                {
++                    return true;
++                }
++            }
++        }
++
++        return false;
++    }
++
++    private static bool AnyContains(IReadOnlyList<string> values, string[] terms)
++    {
++        foreach (var value in values)
++        {
++            if (Contains(value, terms))
++            {
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++    private static bool Contains(string? value, string[] terms)
++    {
++        if (string.IsNullOrEmpty(value))
++        {
++            return false;
++        }
++
++        foreach (var term in terms)
++        {
++            if (value.Contains(term, StringComparison.OrdinalIgnoreCase))
++            {
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++    private static SmartPlaylistRule[] Load()
++    {
++        var configuration = BaseItem.ConfigurationManager;
++        if (configuration is null)
++        {
++            return [];
++        }
++
++        var path = Path.Combine(configuration.CommonApplicationPaths.ConfigurationDirectoryPath, FileName);
++
++        lock (_gate)
++        {
++            DateTime writeTime;
++            try
++            {
++                writeTime = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
++            }
++            catch (IOException)
++            {
++                return _rules;
++            }
++
++            if (writeTime == _loadedWriteTime)
++            {
++                return _rules;
++            }
++
++            _loadedWriteTime = writeTime;
++            _rules = [];
++            if (writeTime == DateTime.MinValue)
++            {
++                return _rules;
++            }
++
++            try
++            {
++                using var stream = File.OpenRead(path);
++                _rules = JsonSerializer.Deserialize<SmartPlaylistRulesFile>(stream, _jsonOptions)?.Playlists ?? [];
++                BaseItem.Logger?.LogInformation("Loaded {Count} smart playlist rules from {Path}", _rules.Length, path);
++            }
++            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
++            {
++                BaseItem.Logger?.LogError(ex, "Failed to read smart playlist rules from {Path}", path);
++                _rules = [];
++            }
++
++            return _rules;
++        }
++    }
++
++    /// <summary>
++    /// The on-disk shape of smart-playlists.json.
++    /// </summary>
++    internal sealed class SmartPlaylistRulesFile
++    {
++        /// <summary>
++        /// Gets or sets the rules, one per playlist.
++        /// </summary>
++        public SmartPlaylistRule[] Playlists { get; set; } = [];
++    }
++}
+diff --git a/tests/Jellyfin.Controller.Tests/Playlists/SmartPlaylistRulesTests.cs b/tests/Jellyfin.Controller.Tests/Playlists/SmartPlaylistRulesTests.cs
+new file mode 100644
+index 0000000000..5825231981
+--- /dev/null
++++ b/tests/Jellyfin.Controller.Tests/Playlists/SmartPlaylistRulesTests.cs
+@@ -0,0 +1,125 @@
++using MediaBrowser.Controller.Playlists;
++using Xunit;
++
++namespace Jellyfin.Controller.Tests.Playlists;
++
++public class SmartPlaylistRulesTests
++{
++    [Fact]
++    public void Matches_ExactGenre_Selects()
++    {
++        var rule = new SmartPlaylistRule { Genres = ["Celtic"] };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Celtic"], [], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Celtic Rock"], [], null));
++    }
++
++    [Fact]
++    public void Matches_ExactGenre_IgnoresCase()
++    {
++        var rule = new SmartPlaylistRule { Genres = ["heavy metal"] };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Heavy Metal"], [], null));
++    }
++
++    [Fact]
++    public void Matches_SeveralGenres_AreOred()
++    {
++        var rule = new SmartPlaylistRule { Genres = ["Dance", "Dance-Pop"] };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Dance"], [], null));
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Dance-Pop"], [], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Hip Hop"], [], null));
++    }
++
++    [Fact]
++    public void Matches_IncludesAcrossFields_AreOred()
++    {
++        var rule = new SmartPlaylistRule
++        {
++            GenreContains = ["Cinematic"],
++            AlbumArtistContains = ["Howard Shore"],
++        };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Cinematic Score"], [], null));
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Soundtrack"], ["Howard Shore"], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Soundtrack"], ["Hans Zimmer"], null));
++    }
++
++    [Fact]
++    public void Matches_Exclusions_BeatIncludes()
++    {
++        var rule = new SmartPlaylistRule
++        {
++            Genres = ["Heavy Metal"],
++            ExcludeGenres = ["Nu Metal"],
++            ExcludeGenreContains = ["Progressive"],
++        };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Heavy Metal"], [], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Heavy Metal", "Nu Metal"], [], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Heavy Metal", "Progressive Metal"], [], null));
++    }
++
++    [Fact]
++    public void Matches_ExcludedAlbum_Rejects()
++    {
++        var rule = new SmartPlaylistRule
++        {
++            Genres = ["Electronic"],
++            ExcludeAlbumContains = ["The Lord of the Rings"],
++        };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Electronic"], [], "Selected Ambient Works"));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Electronic"], [], "The Lord of the Rings: The Two Towers"));
++    }
++
++    [Fact]
++    public void Matches_NoIncludeTerms_AcceptsEverythingNotExcluded()
++    {
++        var rule = new SmartPlaylistRule { ExcludeGenres = ["Hip Hop"] };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Anything"], [], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Hip Hop"], [], null));
++    }
++
++    [Fact]
++    public void Matches_MultiGenreTag_IsSplit()
++    {
++        var rule = new SmartPlaylistRule { Genres = ["Heavy Metal"] };
++
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Hard Rock;Heavy Metal;Metal;Rock"], [], null));
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Hard Rock; Heavy Metal; Rock"], [], null));
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Hard Rock;Metal;Rock"], [], null));
++    }
++
++    [Fact]
++    public void Matches_MultiGenreTag_ExclusionSeesEveryPart()
++    {
++        var rule = new SmartPlaylistRule
++        {
++            Genres = ["Heavy Metal"],
++            ExcludeGenres = ["Nu Metal"],
++        };
++
++        Assert.False(SmartPlaylistRules.Matches(rule, ["Heavy Metal;Nu Metal;Rock"], [], null));
++        Assert.True(SmartPlaylistRules.Matches(rule, ["Heavy Metal;Thrash Metal"], [], null));
++    }
++
++    [Fact]
++    public void Matches_MissingTags_DoNotThrow()
++    {
++        var rule = new SmartPlaylistRule { Genres = ["Celtic"], ExcludeAlbumContains = ["x"] };
++
++        Assert.False(SmartPlaylistRules.Matches(rule, null, null, null));
++    }
++
++    [Fact]
++    public void For_WithoutConfiguration_ReturnsNoRule()
++    {
++        Assert.Null(SmartPlaylistRules.For("Heavy Metal"));
++        Assert.Null(SmartPlaylistRules.For("Some Ordinary Playlist"));
++        Assert.Null(SmartPlaylistRules.For(string.Empty));
++        Assert.Null(SmartPlaylistRules.For(null));
++    }
++}
