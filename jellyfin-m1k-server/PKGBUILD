@@ -4,8 +4,8 @@
 # Based on the Arch Linux jellyfin-server package.
 pkgname=jellyfin-m1k-server
 pkgver=12.1
-pkgrel=1
-pkgdesc='Jellyfin server backend with per-device profile overrides'
+pkgrel=2
+pkgdesc='Jellyfin server backend with per-device profile overrides and rule backed playlists'
 arch=(x86_64)
 url='https://jellyfin.org'
 _url='https://github.com/jellyfin/jellyfin'
@@ -53,7 +53,7 @@ sha256sums=('25f4e76acfc5a28a348533f83047cd7c0f3c3fb93e169a3030be166be2cdaf6e'
             '67766e0cca84127ea8f648b1b2e781fdeaeda931ab452ce7045c5de620b88d8d'
             '1feeb29c0344194cb0e268caafaf7116b71f5f44b2962a1068f5c187b1e81a6d'
             '377c9bd13120431ba71e311b907644722c5cc9b9115793ad0d7f25adda7d99c6'
-            '984fe87665debb24d8f469f37afe1e9785042831c70412676e96d4b5f3e71893')
+            '3009e9e7167737702479c59207bc63d89f953fd68c5e87b155717b87402a07ec')
 
 prepare() {
   cd jellyfin-packaging
