@@ -25,7 +25,7 @@ pkgbase = jellyfin-m1k-server
 	backup = etc/jellyfin/logging.json
 	backup = etc/jellyfin/jellyfin.env
 	source = jellyfin::git+https://github.com/jellyfin/jellyfin#tag=v12.0
-	source = jellyfin-packaging::git+https://github.com/jellyfin/jellyfin-packaging
+	source = jellyfin-packaging::git+https://github.com/jellyfin/jellyfin-packaging#tag=v12.0-202609072105
 	source = sysusers.conf
 	source = tmpfiles.conf
 	source = fix-envfile-path.patch
@@ -33,10 +33,10 @@ pkgbase = jellyfin-m1k-server
 	source = device-profile-overrides.patch
 	sha256sums = SKIP
 	sha256sums = SKIP
-	sha256sums = SKIP
-	sha256sums = SKIP
-	sha256sums = SKIP
-	sha256sums = SKIP
-	sha256sums = SKIP
+	sha256sums = 53c80d0467e4d0104120d617fda5f4a9308daaee1328cdd2b59c7bddf0b3b1e3
+	sha256sums = 67766e0cca84127ea8f648b1b2e781fdeaeda931ab452ce7045c5de620b88d8d
+	sha256sums = 1feeb29c0344194cb0e268caafaf7116b71f5f44b2962a1068f5c187b1e81a6d
+	sha256sums = 377c9bd13120431ba71e311b907644722c5cc9b9115793ad0d7f25adda7d99c6
+	sha256sums = ca93a1e7605fdd3fc72fa3dd1970ae0363657c586e5bc60fed4b748fec4d6439
 
 pkgname = jellyfin-m1k-server
