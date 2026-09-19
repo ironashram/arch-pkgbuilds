@@ -11,6 +11,6 @@ pkgbase = jellyfin-m1k-web
 	provides = jellyfin-web=12.1
 	conflicts = jellyfin-web
 	source = jellyfin-web::git+https://github.com/jellyfin/jellyfin-web#tag=v12.1
-	sha256sums = SKIP
+	sha256sums = dde306cda077d4f8260a37ab0b4246c2be53d281d862b4741f501cc2b2d6ea80
 
 pkgname = jellyfin-m1k-web

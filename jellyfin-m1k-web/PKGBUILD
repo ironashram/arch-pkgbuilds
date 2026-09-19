@@ -13,7 +13,7 @@ makedepends=(git nodejs npm)
 provides=("jellyfin-web=$pkgver")
 conflicts=(jellyfin-web)
 source=("jellyfin-web::git+https://github.com/jellyfin/jellyfin-web#tag=v$pkgver")
-sha256sums=('SKIP')
+sha256sums=('dde306cda077d4f8260a37ab0b4246c2be53d281d862b4741f501cc2b2d6ea80')
 
 prepare() {
   cd jellyfin-web
